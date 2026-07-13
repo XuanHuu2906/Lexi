@@ -1,0 +1,435 @@
+// Prisma schema — Lexi backend
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum CefrLevel {
+  A1
+  A2
+  B1
+  B2
+  C1
+  C2
+}
+
+enum TtsVoice {
+  EN_US
+  EN_GB
+}
+
+enum WordStatus {
+  NEW
+  LEARNING
+  MASTERED
+}
+
+enum ConversationStatus {
+  ACTIVE
+  COMPLETED
+}
+
+// Which "Ask Lexi" surface a saved chat thread belongs to.
+enum ChatKind {
+  TUTOR
+  GRAMMAR
+}
+
+enum QuizStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum NotificationType {
+  REVIEW_DUE
+  STREAK_RISK
+  ENCOURAGEMENT
+  BADGE_EARNED
+  SYSTEM
+}
+
+enum UserRole {
+  LEARNER
+  ADMIN
+}
+
+// Conversation-scenario difficulty (UI maps to Dễ / Trung bình / Khó).
+enum ScenarioDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+// Every write action an admin can take, recorded in the audit log (UCA08).
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOCK
+  UNLOCK
+  TOGGLE
+  IMPORT
+  EXPORT
+}
+
+// ─────────────────────────────────────────────────────────────
+// Auth & user
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  passwordHash  String? // null for social logins
+  provider      AuthProvider @default(LOCAL)
+  emailVerified Boolean      @default(false)
+  role          UserRole     @default(LEARNER)
+
+  // Brute-force protection: lock the account after too many failed logins.
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
+  // Admin-imposed account lock (UCA06). Distinct from the brute-force
+  // `lockedUntil`: null = active; set = an admin disabled the account and the
+  // user cannot log in until unlocked.
+  disabledAt     DateTime?
+  disabledReason String?
+
+  lastActiveAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs AuditLog[]
+
+  setting           Setting?
+  streak            Streak?
+  words             Word[]
+  grammarRules      GrammarRule[]
+  reviewLogs        ReviewLog[]
+  quizResults       QuizResult[]
+  conversationLogs  ConversationLog[]
+  chatThreads       ChatThread[]
+  notifications     Notification[]
+  userBadges        UserBadge[]
+  pushSubscriptions PushSubscription[]
+  refreshTokens     RefreshToken[]
+
+  @@map("users")
+}
+
+// Rotating refresh tokens for cookie-based auth. Only the SHA-256 hash of the
+// opaque token is stored, so a DB leak can't reconstruct a usable token. Each
+// refresh rotates: the old row is marked revoked and a new one is issued.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique // SHA-256 of the raw token
+  expiresAt DateTime
+  revokedAt DateTime? // set on rotation, logout, or reuse-detection
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Setting {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyGoal     Int       @default(10) // words per day
+  cefrLevel     CefrLevel @default(A2)
+  topics        String[]  @default([])
+  reminderTime  String    @default("20:00") // "HH:mm" in the user's `timeZone`
+  timeZone      String    @default("Asia/Ho_Chi_Minh") // IANA tz for reminderTime
+  notifyEnabled Boolean   @default(true)
+  ttsVoice      TtsVoice  @default(EN_US)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("settings")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Vocabulary + SRS
+// ─────────────────────────────────────────────────────────────
+
+model Word {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  term         String
+  meaning      String
+  phonetic     String?
+  partOfSpeech String?
+  examples     String[]   @default([])
+  synonyms     String[]   @default([])
+  antonyms     String[]   @default([])
+  topic        String?
+  note         String?
+  status       WordStatus @default(NEW)
+  // UC11 quiz rotation: true once this word has been quizzed in the current
+  // coverage cycle. Reset for all of a user's words when the cycle completes.
+  quizzedInCycle Boolean  @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  srsData    SrsData?
+  reviewLogs ReviewLog[]
+
+  @@unique([userId, term]) // prevent duplicates in a user's book
+  @@index([userId, status])
+  @@map("words")
+}
+
+// SM-2 spaced-repetition state, 1-1 with Word.
+model SrsData {
+  id             String    @id @default(cuid())
+  wordId         String    @unique
+  word           Word      @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  interval       Int       @default(1) // days until next review
+  easeFactor     Float     @default(2.5)
+  repetitions    Int       @default(0)
+  lastQuality    Int? // 0..5, last self-rated recall
+  lastReviewedAt DateTime?
+  nextReviewAt   DateTime  @default(now())
+
+  @@index([nextReviewAt])
+  @@map("srs_data")
+}
+
+model ReviewLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wordId     String
+  word       Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  quality    Int // 0..5
+  reviewedAt DateTime @default(now())
+
+  @@index([userId, reviewedAt])
+  @@index([wordId])
+  @@map("review_logs")
+}
+
+// Reference list of common TOEIC vocabulary (global, not per-user). Used to
+// verify/mark which AI-suggested synonyms are actually TOEIC-frequent words
+// (UC21). Seeded from prisma/data/toeic-vocab.csv; add rows over time.
+model ToeicWord {
+  id        String   @id @default(cuid())
+  term      String   @unique // normalized: lowercased, trimmed, no trailing "(...)"
+  display   String? // original surface form from the source list
+  pos       String? // part of speech, e.g. "n", "v", "adj"
+  ipa       String? // phonetic transcription
+  meaning   String? // Vietnamese meaning
+  group     String? // admin-assigned theme, e.g. "Kinh doanh", "Tài chính"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("toeic_words")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Admin: conversation scenarios + audit log
+// ─────────────────────────────────────────────────────────────
+
+// Bank of speaking scenarios learners pick in UC12. Managed by admins (UCA04);
+// `enabled=false` hides it from the picker without deleting it.
+model ConversationScenario {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  description String
+  roleHint    String // opening role/context handed to the AI
+  difficulty  ScenarioDifficulty @default(EASY)
+  enabled     Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("conversation_scenarios")
+}
+
+// Append-only trail of every admin write action (UCA08). Read-only from the UI.
+// The acting admin is kept both as a nullable FK and an email snapshot so the
+// record survives even if that admin account is later removed.
+model AuditLog {
+  id         String      @id @default(cuid())
+  adminId    String?
+  admin      User?       @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  adminEmail String // snapshot of the acting admin's email at write time
+  action     AuditAction
+  target     String // human-readable object, e.g. "Từ: forecast"
+  reason     String?
+  before     String?
+  after      String?
+  createdAt  DateTime    @default(now())
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Grammar
+// ─────────────────────────────────────────────────────────────
+
+model GrammarRule {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String?
+  formula     String
+  explanation String
+  examples    String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@map("grammar_rules")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Quiz
+// ─────────────────────────────────────────────────────────────
+
+model QuizResult {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score       Int        @default(0)
+  total       Int
+  status      QuizStatus @default(IN_PROGRESS)
+  questions   Json? // generated questions + user answers (for resume/review)
+  createdAt   DateTime   @default(now())
+  completedAt DateTime?
+
+  @@index([userId, createdAt])
+  @@map("quiz_results")
+}
+
+// ─────────────────────────────────────────────────────────────
+// AI skills — conversation practice
+// ─────────────────────────────────────────────────────────────
+
+model ConversationLog {
+  id         String             @id @default(cuid())
+  userId     String
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenario   String
+  transcript Json               @default("[]") // [{ role, content, feedback? }]
+  feedback   String? // final strengths/weaknesses summary
+  status     ConversationStatus @default(ACTIVE)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@index([userId])
+  @@map("conversation_logs")
+}
+
+// A saved "Ask Lexi" / "Grammar Q&A" chat thread. The AI ask endpoints stay
+// stateless; the client owns the running transcript and persists it here so a
+// learner can browse and reopen past chats across devices.
+model ChatThread {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      ChatKind
+  title     String
+  messages  Json     @default("[]") // client-shaped turns: [{ who, text, … }]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, kind, updatedAt])
+  @@map("chat_threads")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Gamification
+// ─────────────────────────────────────────────────────────────
+
+model Streak {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentStreak  Int       @default(0)
+  longestStreak  Int       @default(0)
+  streakFreezes  Int       @default(0) // "protect streak" items
+  lastActiveDate DateTime?
+
+  @@map("streaks")
+}
+
+model Badge {
+  id          String   @id @default(cuid())
+  code        String   @unique // stable identifier, e.g. "first_word"
+  name        String
+  description String
+  condition   String // human-readable rule; evaluated in code
+  icon        String?
+  createdAt   DateTime @default(now())
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId  String
+  badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  earnedAt DateTime @default(now())
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Notifications
+// ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id      String           @id @default(cuid())
+  userId  String
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content String
+  type    NotificationType @default(SYSTEM)
+  read    Boolean          @default(false)
+  sentAt  DateTime         @default(now())
+
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+// Web Push subscription (one per device/browser).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}

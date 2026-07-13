@@ -1,0 +1,49 @@
+# Render Blueprint — deploy the Lexi backend as a Docker web service.
+# Docs: https://render.com/docs/blueprint-spec
+# Secrets (sync: false) are set in the Render dashboard, never committed.
+services:
+  - type: web
+    name: lexi-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      # Neon Postgres. DATABASE_URL = pooled URL; DIRECT_URL = direct (for migrations).
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      # Comma-separated: production domain + Vercel preview URLs.
+      - key: CORS_ORIGIN
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        value: https://api.deepseek.com
+      - key: AI_MODEL
+        value: deepseek-chat
+      - key: RESEND_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      # Redis (Upstash) for the reminder job queue (BullMQ). MUST be the native
+      # TCP connection string (rediss://…:6379), NOT the Upstash REST URL.
+      - key: REDIS_URL
+        sync: false
