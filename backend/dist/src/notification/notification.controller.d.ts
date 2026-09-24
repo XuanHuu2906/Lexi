@@ -16,9 +16,9 @@ export declare class NotificationController {
     list(userId: string, query: ListNotificationsDto): Promise<{
         items: {
             id: string;
-            type: import("../../generated/prisma/enums").NotificationType;
             userId: string;
             content: string;
+            type: import("../../generated/prisma/enums").NotificationType;
             read: boolean;
             sentAt: Date;
         }[];
@@ -32,9 +32,9 @@ export declare class NotificationController {
     }>;
     markRead(userId: string, id: string): Promise<{
         id: string;
-        type: import("../../generated/prisma/enums").NotificationType;
         userId: string;
         content: string;
+        type: import("../../generated/prisma/enums").NotificationType;
         read: boolean;
         sentAt: Date;
     }>;

@@ -15,29 +15,29 @@ export declare class WordsController {
     }>;
     create(userId: string, dto: CreateWordDto): Promise<{
         srsData: {
+            id: string;
+            wordId: string;
             interval: number;
             easeFactor: number;
             repetitions: number;
-            id: string;
             lastQuality: number | null;
             lastReviewedAt: Date | null;
             nextReviewAt: Date;
-            wordId: string;
         } | null;
     } & {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        meaning: string;
-        term: string;
-        examples: string[];
         userId: string;
-        note: string | null;
-        partOfSpeech: string | null;
+        term: string;
+        meaning: string;
         phonetic: string | null;
+        partOfSpeech: string | null;
+        examples: string[];
         synonyms: string[];
         antonyms: string[];
         topic: string | null;
+        note: string | null;
         status: import("../../generated/prisma/enums").WordStatus;
         quizzedInCycle: boolean;
     }>;
@@ -45,29 +45,29 @@ export declare class WordsController {
     quickAdd(userId: string, dto: QuickAddDto): Promise<{
         word: {
             srsData: {
+                id: string;
+                wordId: string;
                 interval: number;
                 easeFactor: number;
                 repetitions: number;
-                id: string;
                 lastQuality: number | null;
                 lastReviewedAt: Date | null;
                 nextReviewAt: Date;
-                wordId: string;
             } | null;
         } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            meaning: string;
-            term: string;
-            examples: string[];
             userId: string;
-            note: string | null;
-            partOfSpeech: string | null;
+            term: string;
+            meaning: string;
             phonetic: string | null;
+            partOfSpeech: string | null;
+            examples: string[];
             synonyms: string[];
             antonyms: string[];
             topic: string | null;
+            note: string | null;
             status: import("../../generated/prisma/enums").WordStatus;
             quizzedInCycle: boolean;
         };
@@ -81,29 +81,29 @@ export declare class WordsController {
     list(userId: string, query: ListWordsDto): Promise<{
         items: ({
             srsData: {
+                id: string;
+                wordId: string;
                 interval: number;
                 easeFactor: number;
                 repetitions: number;
-                id: string;
                 lastQuality: number | null;
                 lastReviewedAt: Date | null;
                 nextReviewAt: Date;
-                wordId: string;
             } | null;
         } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            meaning: string;
-            term: string;
-            examples: string[];
             userId: string;
-            note: string | null;
-            partOfSpeech: string | null;
+            term: string;
+            meaning: string;
             phonetic: string | null;
+            partOfSpeech: string | null;
+            examples: string[];
             synonyms: string[];
             antonyms: string[];
             topic: string | null;
+            note: string | null;
             status: import("../../generated/prisma/enums").WordStatus;
             quizzedInCycle: boolean;
         })[];
@@ -114,35 +114,35 @@ export declare class WordsController {
     getOne(userId: string, id: string): Promise<{
         reviewLogs: {
             id: string;
-            wordId: string;
             userId: string;
-            reviewedAt: Date;
+            wordId: string;
             quality: number;
+            reviewedAt: Date;
         }[];
         srsData: {
+            id: string;
+            wordId: string;
             interval: number;
             easeFactor: number;
             repetitions: number;
-            id: string;
             lastQuality: number | null;
             lastReviewedAt: Date | null;
             nextReviewAt: Date;
-            wordId: string;
         } | null;
     } & {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        meaning: string;
-        term: string;
-        examples: string[];
         userId: string;
-        note: string | null;
-        partOfSpeech: string | null;
+        term: string;
+        meaning: string;
         phonetic: string | null;
+        partOfSpeech: string | null;
+        examples: string[];
         synonyms: string[];
         antonyms: string[];
         topic: string | null;
+        note: string | null;
         status: import("../../generated/prisma/enums").WordStatus;
         quizzedInCycle: boolean;
     }>;
@@ -153,29 +153,29 @@ export declare class WordsController {
         generated: import("../ai/features/examples").ExampleSentence[];
         word: {
             srsData: {
+                id: string;
+                wordId: string;
                 interval: number;
                 easeFactor: number;
                 repetitions: number;
-                id: string;
                 lastQuality: number | null;
                 lastReviewedAt: Date | null;
                 nextReviewAt: Date;
-                wordId: string;
             } | null;
         } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            meaning: string;
-            term: string;
-            examples: string[];
             userId: string;
-            note: string | null;
-            partOfSpeech: string | null;
+            term: string;
+            meaning: string;
             phonetic: string | null;
+            partOfSpeech: string | null;
+            examples: string[];
             synonyms: string[];
             antonyms: string[];
             topic: string | null;
+            note: string | null;
             status: import("../../generated/prisma/enums").WordStatus;
             quizzedInCycle: boolean;
         };

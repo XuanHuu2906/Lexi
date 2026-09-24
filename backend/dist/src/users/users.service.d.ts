@@ -15,6 +15,7 @@ export declare class UsersService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            userId: string;
             dailyGoal: number;
             cefrLevel: import("../../generated/prisma/enums").CefrLevel;
             topics: string[];
@@ -22,21 +23,21 @@ export declare class UsersService {
             timeZone: string;
             notifyEnabled: boolean;
             ttsVoice: import("../../generated/prisma/enums").TtsVoice;
-            userId: string;
         } | null;
         streak: {
             id: string;
+            userId: string;
             currentStreak: number;
             longestStreak: number;
             streakFreezes: number;
             lastActiveDate: Date | null;
-            userId: string;
         } | null;
     }>;
     updateSettings(userId: string, dto: UpdateSettingsDto): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        userId: string;
         dailyGoal: number;
         cefrLevel: import("../../generated/prisma/enums").CefrLevel;
         topics: string[];
@@ -44,6 +45,5 @@ export declare class UsersService {
         timeZone: string;
         notifyEnabled: boolean;
         ttsVoice: import("../../generated/prisma/enums").TtsVoice;
-        userId: string;
     }>;
 }

@@ -7,13 +7,13 @@ export declare class AdminAuditController {
         items: {
             id: string;
             createdAt: Date;
-            reason: string | null;
-            action: import("../../generated/prisma/enums").AuditAction;
+            adminId: string | null;
             adminEmail: string;
+            action: import("../../generated/prisma/enums").AuditAction;
             target: string;
+            reason: string | null;
             before: string | null;
             after: string | null;
-            adminId: string | null;
         }[];
         total: number;
         page: number;

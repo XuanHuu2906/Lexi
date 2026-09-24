@@ -22,13 +22,13 @@ export declare class AuditService {
     log(actor: AuditActor, input: AuditInput): Prisma.Prisma__AuditLogClient<{
         id: string;
         createdAt: Date;
-        reason: string | null;
-        action: AuditAction;
+        adminId: string | null;
         adminEmail: string;
+        action: AuditAction;
         target: string;
+        reason: string | null;
         before: string | null;
         after: string | null;
-        adminId: string | null;
     }, never, import("@prisma/client/runtime/client").DefaultArgs, {
         omit: Prisma.GlobalOmitConfig | undefined;
     }>;
@@ -36,13 +36,13 @@ export declare class AuditService {
         items: {
             id: string;
             createdAt: Date;
-            reason: string | null;
-            action: AuditAction;
+            adminId: string | null;
             adminEmail: string;
+            action: AuditAction;
             target: string;
+            reason: string | null;
             before: string | null;
             after: string | null;
-            adminId: string | null;
         }[];
         total: number;
         page: number;

@@ -19,11 +19,11 @@ export declare class AdminWordsService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            term: string;
+            meaning: string | null;
+            display: string | null;
             pos: string | null;
             ipa: string | null;
-            meaning: string | null;
-            term: string;
-            display: string | null;
             group: string | null;
         }[];
         total: number;
@@ -34,22 +34,22 @@ export declare class AdminWordsService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        term: string;
+        meaning: string | null;
+        display: string | null;
         pos: string | null;
         ipa: string | null;
-        meaning: string | null;
-        term: string;
-        display: string | null;
         group: string | null;
     }>;
     update(actor: AuditActor, id: string, dto: UpdateAdminWordDto): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        term: string;
+        meaning: string | null;
+        display: string | null;
         pos: string | null;
         ipa: string | null;
-        meaning: string | null;
-        term: string;
-        display: string | null;
         group: string | null;
     }>;
     remove(actor: AuditActor, id: string): Promise<{

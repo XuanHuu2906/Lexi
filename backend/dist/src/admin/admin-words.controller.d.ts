@@ -9,11 +9,11 @@ export declare class AdminWordsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            term: string;
+            meaning: string | null;
+            display: string | null;
             pos: string | null;
             ipa: string | null;
-            meaning: string | null;
-            term: string;
-            display: string | null;
             group: string | null;
         }[];
         total: number;
@@ -24,11 +24,11 @@ export declare class AdminWordsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        term: string;
+        meaning: string | null;
+        display: string | null;
         pos: string | null;
         ipa: string | null;
-        meaning: string | null;
-        term: string;
-        display: string | null;
         group: string | null;
     }>;
     import(user: AuthUser, dto: ImportWordsDto): Promise<{
@@ -45,11 +45,11 @@ export declare class AdminWordsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        term: string;
+        meaning: string | null;
+        display: string | null;
         pos: string | null;
         ipa: string | null;
-        meaning: string | null;
-        term: string;
-        display: string | null;
         group: string | null;
     }>;
     remove(user: AuthUser, id: string): Promise<{

@@ -14,9 +14,9 @@ export declare class GrammarService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        userId: string;
         examples: string[];
         title: string | null;
-        userId: string;
         formula: string;
         explanation: string;
     }, never, import("@prisma/client/runtime/client").DefaultArgs, {
@@ -27,9 +27,9 @@ export declare class GrammarService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            userId: string;
             examples: string[];
             title: string | null;
-            userId: string;
             formula: string;
             explanation: string;
         }[];
@@ -41,9 +41,9 @@ export declare class GrammarService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        userId: string;
         examples: string[];
         title: string | null;
-        userId: string;
         formula: string;
         explanation: string;
     }>;
@@ -51,9 +51,9 @@ export declare class GrammarService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        userId: string;
         examples: string[];
         title: string | null;
-        userId: string;
         formula: string;
         explanation: string;
     }>;
@@ -66,9 +66,9 @@ export declare class GrammarService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            userId: string;
             examples: string[];
             title: string | null;
-            userId: string;
             formula: string;
             explanation: string;
         };

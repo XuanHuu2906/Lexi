@@ -22,9 +22,9 @@ export declare class NotificationService {
     list(userId: string, query: ListNotificationsDto): Promise<{
         items: {
             id: string;
-            type: NotificationType;
             userId: string;
             content: string;
+            type: NotificationType;
             read: boolean;
             sentAt: Date;
         }[];
@@ -35,9 +35,9 @@ export declare class NotificationService {
     }>;
     markRead(userId: string, id: string): Promise<{
         id: string;
-        type: NotificationType;
         userId: string;
         content: string;
+        type: NotificationType;
         read: boolean;
         sentAt: Date;
     }>;
@@ -49,9 +49,9 @@ export declare class NotificationService {
     sendDueReminders(now?: Date): Promise<number>;
     remindUser(userId: string, now?: Date): Promise<{
         id: string;
-        type: NotificationType;
         userId: string;
         content: string;
+        type: NotificationType;
         read: boolean;
         sentAt: Date;
     } | undefined>;

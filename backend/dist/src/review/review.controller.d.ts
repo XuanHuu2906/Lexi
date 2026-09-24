@@ -8,29 +8,29 @@ export declare class ReviewController {
     due(userId: string, query: DueDto): Promise<{
         items: ({
             srsData: {
+                id: string;
+                wordId: string;
                 interval: number;
                 easeFactor: number;
                 repetitions: number;
-                id: string;
                 lastQuality: number | null;
                 lastReviewedAt: Date | null;
                 nextReviewAt: Date;
-                wordId: string;
             } | null;
         } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            meaning: string;
-            term: string;
-            examples: string[];
             userId: string;
-            note: string | null;
-            partOfSpeech: string | null;
+            term: string;
+            meaning: string;
             phonetic: string | null;
+            partOfSpeech: string | null;
+            examples: string[];
             synonyms: string[];
             antonyms: string[];
             topic: string | null;
+            note: string | null;
             status: import("../../generated/prisma/enums").WordStatus;
             quizzedInCycle: boolean;
         })[];
@@ -39,14 +39,14 @@ export declare class ReviewController {
     }>;
     answer(userId: string, dto: AnswerDto): Promise<{
         srsData: {
+            id: string;
+            wordId: string;
             interval: number;
             easeFactor: number;
             repetitions: number;
-            id: string;
             lastQuality: number | null;
             lastReviewedAt: Date | null;
             nextReviewAt: Date;
-            wordId: string;
         };
         status: "LEARNING" | "MASTERED";
         nextReviewAt: Date;
