@@ -1,0 +1,17 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+lexi:
+  security:
+    jwt-secret: ${JWT_SECRET:dev-only-secret-change-me}
+    access-token-ttl: ${JWT_ACCESS_EXPIRES:15m}
+    refresh-token-days: ${JWT_REFRESH_EXPIRES_DAYS:30}
+
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+
+  database:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/lexi}
