@@ -1,0 +1,17 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+
+lexi:
+  security:
+    jwt-secret: test-secret-only
+    access-token-ttl: 15m
+    refresh-token-days: 30
+
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+
+  database:
+    url: jdbc:postgresql://localhost:5432/lexi_test

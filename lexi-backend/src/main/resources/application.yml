@@ -1,1 +1,9 @@
-spring.application.name=lexi-backend
+spring:
+  application:
+    name: lexi-backend
+
+  profiles:
+    default: dev
+
+server:
+  port: 8080
