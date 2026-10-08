@@ -8,5 +8,10 @@ spring:
   jackson:
     deserialization:
       fail-on-unknown-properties: true
+      
 server:
   port: 8080
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [requestId=%X{requestId}] %logger{36} - %msg%n"

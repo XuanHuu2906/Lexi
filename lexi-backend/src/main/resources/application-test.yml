@@ -3,6 +3,13 @@ spring:
     activate:
       on-profile: test
 
+  jpa:
+    show-sql: true
+
+    properties:
+      hibernate:
+        format_sql: true
+
 lexi:
   security:
     jwt-secret: test-secret-only
