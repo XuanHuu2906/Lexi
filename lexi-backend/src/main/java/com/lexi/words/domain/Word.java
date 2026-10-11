@@ -8,10 +8,19 @@ import java.util.List;
 
 import com.lexi.review.domain.ReviewLog;
 import com.lexi.users.domain.User;
+import com.lexi.users.domain.UserRole;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "words")
 public class Word {
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "status", nullable = false, columnDefinition = "\"WordStatus\"")
+    private WordStatus status;
+
     @OneToMany(mappedBy = "word", fetch = FetchType.LAZY)
     private List<ReviewLog> reviewLogs = new ArrayList<>();
 
@@ -54,11 +63,13 @@ public class Word {
     }
 
     public Word(
+
             String id,
             User user,
             String term,
             String meaning,
             LocalDateTime now) {
+        this.status = WordStatus.NEW;
         this.id = id;
         this.user = user;
         this.term = term;
@@ -69,8 +80,8 @@ public class Word {
     }
 
     public List<ReviewLog> getReviewLogs() {
-    return reviewLogs;
-}
+        return reviewLogs;
+    }
 
     public String getId() {
         return id;
@@ -86,5 +97,18 @@ public class Word {
 
     public String getMeaning() {
         return meaning;
+    }
+
+    public WordStatus getStatus() {
+        return status;
+    }
+
+    public void changeStatus(WordStatus newStatus) {
+        if (newStatus == null) {
+            throw new IllegalArgumentException(
+                    "Word status must not be null");
+        }
+
+        this.status = newStatus;
     }
 }

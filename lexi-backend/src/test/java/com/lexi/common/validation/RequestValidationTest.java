@@ -30,11 +30,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import com.lexi.config.PostgresTestConfig;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(RequestValidationTest.ValidationProbeController.class)
+@Import({PostgresTestConfig.class, RequestValidationTest.ValidationProbeController.class})
 class RequestValidationTest {
 
   @Autowired

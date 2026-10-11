@@ -8,7 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.test.context.jdbc.Sql;
 import jakarta.persistence.EntityManager;
+import com.lexi.users.domain.UserRole;
 
 @Testcontainers
 @DataJpaTest
@@ -40,6 +41,9 @@ class UserRepositoryTest {
         @Test
         void contextLoads() {
         }
+
+        @Autowired
+        private JdbcTemplate jdbcTemplate;
 
         @Autowired
         private DataSource dataSource;
@@ -167,5 +171,112 @@ class UserRepositoryTest {
                                 "existing@lexi.test");
 
                 assertThat(result).isEmpty();
+        }
+
+        @Test
+        void shouldPersistAndReadPostgresNamedEnum() {
+
+                LocalDateTime now = LocalDateTime.of(
+                                2026, 10, 11, 12, 0);
+
+                User user = new User(
+                                "cm_test_enum_user",
+                                "enum@lexi.test",
+                                "hashed-password",
+                                now);
+
+                // Java -> PostgreSQL
+                userRepository.saveAndFlush(user);
+
+                String databaseRole = jdbcTemplate.queryForObject(
+                                """
+                                                SELECT role::text
+                                                FROM users
+                                                WHERE id = ?
+                                                """,
+                                String.class,
+                                user.getId());
+
+                assertThat(databaseRole)
+                                .isEqualTo("LEARNER");
+
+                // Xóa managed entities khỏi Persistence Context
+                entityManager.clear();
+
+                // PostgreSQL -> Java
+                User loaded = userRepository
+                                .findById(user.getId())
+                                .orElseThrow();
+
+                assertThat(loaded.getRole())
+                                .isEqualTo(UserRole.LEARNER);
+        }
+
+        @Test
+        void shouldReadAdminRoleFromPostgresEnum() {
+
+                String userId = "cm_test_existing_user";
+
+                jdbcTemplate.update(
+                                """
+                                                UPDATE users
+                                                SET role = 'ADMIN'::"UserRole"
+                                                WHERE id = ?
+                                                """,
+                                userId);
+
+                entityManager.clear();
+
+                User user = userRepository
+                                .findById(userId)
+                                .orElseThrow();
+
+                assertThat(user.getRole())
+                                .isEqualTo(UserRole.ADMIN);
+        }
+
+        @Test
+        void shouldMapPostgresNamedEnumInBothDirections() {
+
+                LocalDateTime now = LocalDateTime.of(
+                                2026, 10, 11, 12, 0);
+
+                User user = new User(
+                                "cm_enum_test_01",
+                                "enum@lexi.test",
+                                "hashed-password",
+                                now);
+
+                // PHẦN 1: Java -> PostgreSQL
+                userRepository.saveAndFlush(user);
+
+                String storedRole = jdbcTemplate.queryForObject(
+                                """
+                                                SELECT role::text
+                                                FROM users
+                                                WHERE id = ?
+                                                """,
+                                String.class,
+                                user.getId());
+
+                assertThat(storedRole).isEqualTo("LEARNER");
+
+                // PHẦN 2: PostgreSQL thay đổi role
+                jdbcTemplate.update(
+                                """
+                                                UPDATE users
+                                                SET role = 'ADMIN'::"UserRole"
+                                                WHERE id = ?
+                                                """,
+                                user.getId());
+
+                // PHẦN 3: PostgreSQL -> Java
+                entityManager.clear();
+
+                User loaded = userRepository.findById(user.getId())
+                                .orElseThrow();
+
+                assertThat(loaded.getRole())
+                                .isEqualTo(UserRole.ADMIN);
         }
 }
