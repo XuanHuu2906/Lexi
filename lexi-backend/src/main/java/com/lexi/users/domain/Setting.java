@@ -3,21 +3,29 @@ package com.lexi.users.domain;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "settings")
 public class Setting {
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "\"cefrLevel\"", nullable = false, columnDefinition = "\"CefrLevel\"")
+    private CefrLevel cefrLevel;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "\"ttsVoice\"", nullable = false, columnDefinition = "\"TtsVoice\"")
+    private TtsVoice ttsVoice;
 
     @Id
     @Column(name = "id", nullable = false)
     private String id;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(
-            name = "\"userId\"",
-            nullable = false,
-            unique = true
-    )
+    @JoinColumn(name = "\"userId\"", nullable = false, unique = true)
     private User user;
 
     @Column(name = "\"dailyGoal\"", nullable = false)
@@ -44,8 +52,9 @@ public class Setting {
     public Setting(
             String id,
             User user,
-            LocalDateTime now
-    ) {
+            LocalDateTime now) {
+        this.cefrLevel = CefrLevel.A2;
+        this.ttsVoice = TtsVoice.EN_US;
         this.id = id;
         this.user = user;
 
@@ -68,5 +77,31 @@ public class Setting {
 
     public String getId() {
         return id;
+    }
+
+    public CefrLevel getCefrLevel() {
+        return cefrLevel;
+    }
+
+    public TtsVoice getTtsVoice() {
+        return ttsVoice;
+    }
+
+    public void changeCefrLevel(CefrLevel cefrLevel) {
+        if (cefrLevel == null) {
+            throw new IllegalArgumentException(
+                    "CEFR level must not be null");
+        }
+
+        this.cefrLevel = cefrLevel;
+    }
+
+    public void changeTtsVoice(TtsVoice ttsVoice) {
+        if (ttsVoice == null) {
+            throw new IllegalArgumentException(
+                    "TTS voice must not be null");
+        }
+
+        this.ttsVoice = ttsVoice;
     }
 }

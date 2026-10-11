@@ -7,8 +7,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.time.Clock;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.lexi.config.PostgresTestConfig;
+import org.springframework.context.annotation.Import;
 
 @SpringBootTest
+@Import(PostgresTestConfig.class)
 class AppClockConfigTest {
 
     @Autowired

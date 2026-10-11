@@ -19,93 +19,154 @@ import com.lexi.users.domain.User;
 import com.lexi.users.repository.UserRepository;
 import com.lexi.words.domain.Word;
 import com.lexi.words.repository.WordRepository;
+import com.lexi.words.domain.WordStatus;
+import jakarta.persistence.EntityManager;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @Testcontainers
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Sql("/sql/user-repository-schema.sql")
 public class WordReviewLogRepositoryTest {
-  @Container
-  @ServiceConnection
-  static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17")
-      .withDatabaseName("lexi_test")
-      .withUsername("test")
-      .withPassword("test");
+    @Container
+    @ServiceConnection
+    static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17")
+            .withDatabaseName("lexi_test")
+            .withUsername("test")
+            .withPassword("test");
 
-  @Autowired
-  private UserRepository userRepository;
+    @Autowired
+    private EntityManager entityManager;
 
-  @Autowired
-  private WordRepository wordRepository;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private UserRepository userRepository;
 
-  @Test
-  void shouldNavigateFromUserToWords() {
+    @Autowired
+    private WordRepository wordRepository;
 
-    User user = userRepository
-        .findById("cm_test_existing_user")
-        .orElseThrow();
+    @Test
+    void shouldNavigateFromUserToWords() {
 
-    List<Word> words = user.getWords();
+        User user = userRepository
+                .findById("cm_test_existing_user")
+                .orElseThrow();
 
-    assertThat(words)
-        .hasSize(3);
-  }
+        List<Word> words = user.getWords();
 
-  @Test
-  void shouldNavigateFromWordToReviewLogs() {
-
-    Word word = wordRepository
-        .findById("cm_test_word_1")
-        .orElseThrow();
-
-    List<ReviewLog> logs = word.getReviewLogs();
-
-    assertThat(logs)
-        .hasSize(2);
-
-    assertThat(logs)
-        .extracting(ReviewLog::getQuality)
-        .containsExactlyInAnyOrder(4, 5);
-  }
-
-  @Test
-  void shouldNavigateFromUserToReviewLogs() {
-
-    User user = userRepository
-        .findById("cm_test_existing_user")
-        .orElseThrow();
-
-    assertThat(user.getReviewLogs())
-        .hasSize(4);
-  }
-
-  @Test
-  void shouldDemonstrateNPlusOneProblem() {
-
-    List<Word> words = wordRepository
-        .findAllByUser_Id(
-            "cm_test_existing_user");
-
-    for (Word word : words) {
-      System.out.println(
-          word.getTerm()
-              + ": "
-              + word.getReviewLogs().size());
+        assertThat(words)
+                .hasSize(3);
     }
-  }
 
-  @Test
-  void shouldFetchWordsAndReviewLogsWithoutNPlusOne() {
+    @Test
+    void shouldNavigateFromWordToReviewLogs() {
 
-    List<Word> words = wordRepository
-        .findAllWithReviewLogsByUserId(
-            "cm_test_existing_user");
+        Word word = wordRepository
+                .findById("cm_test_word_1")
+                .orElseThrow();
 
-    for (Word word : words) {
-      System.out.println(
-          word.getTerm()
-              + ": "
-              + word.getReviewLogs().size());
+        List<ReviewLog> logs = word.getReviewLogs();
+
+        assertThat(logs)
+                .hasSize(2);
+
+        assertThat(logs)
+                .extracting(ReviewLog::getQuality)
+                .containsExactlyInAnyOrder(4, 5);
     }
-  }
+
+    @Test
+    void shouldNavigateFromUserToReviewLogs() {
+
+        User user = userRepository
+                .findById("cm_test_existing_user")
+                .orElseThrow();
+
+        assertThat(user.getReviewLogs())
+                .hasSize(4);
+    }
+
+    @Test
+    void shouldDemonstrateNPlusOneProblem() {
+
+        List<Word> words = wordRepository
+                .findAllByUser_Id(
+                        "cm_test_existing_user");
+
+        for (Word word : words) {
+            System.out.println(
+                    word.getTerm()
+                            + ": "
+                            + word.getReviewLogs().size());
+        }
+    }
+
+    @Test
+    void shouldFetchWordsAndReviewLogsWithoutNPlusOne() {
+
+        List<Word> words = wordRepository
+                .findAllWithReviewLogsByUserId(
+                        "cm_test_existing_user");
+
+        for (Word word : words) {
+            System.out.println(
+                    word.getTerm()
+                            + ": "
+                            + word.getReviewLogs().size());
+        }
+    }
+
+    @Test
+    void shouldMapWordStatusInBothDirections() {
+
+        String wordId = "cm_test_word_1";
+
+        // 1. Đọc status ban đầu từ PostgreSQL
+        Word word = wordRepository
+                .findById(wordId)
+                .orElseThrow();
+
+        assertThat(word.getStatus())
+                .isEqualTo(WordStatus.NEW);
+
+        // 2. Java thay đổi status
+        word.changeStatus(WordStatus.LEARNING);
+
+        // Hibernate dirty checking -> UPDATE
+        wordRepository.flush();
+
+        // 3. Kiểm tra PostgreSQL nhận LEARNING
+        String storedStatus = jdbcTemplate.queryForObject(
+                """
+                        SELECT status::text
+                        FROM words
+                        WHERE id = ?
+                        """,
+                String.class,
+                wordId);
+
+        assertThat(storedStatus)
+                .isEqualTo("LEARNING");
+
+        // 4. PostgreSQL thay đổi status trực tiếp
+        jdbcTemplate.update(
+                """
+                        UPDATE words
+                        SET status = 'MASTERED'::"WordStatus"
+                        WHERE id = ?
+                        """,
+                wordId);
+
+        // 5. Loại bỏ managed entity cũ
+        entityManager.clear();
+
+        // 6. Hibernate đọc lại PostgreSQL enum
+        Word reloaded = wordRepository
+                .findById(wordId)
+                .orElseThrow();
+
+        assertThat(reloaded.getStatus())
+                .isEqualTo(WordStatus.MASTERED);
+    }
 }

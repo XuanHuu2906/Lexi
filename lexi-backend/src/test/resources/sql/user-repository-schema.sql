@@ -1,6 +1,8 @@
 DROP TABLE IF EXISTS users CASCADE;
 DROP TYPE IF EXISTS "UserRole" CASCADE;
 DROP TYPE IF EXISTS "AuthProvider" CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TYPE IF EXISTS "NotificationType" CASCADE;
 
 CREATE TYPE "AuthProvider"
     AS ENUM ('LOCAL', 'GOOGLE');
@@ -386,3 +388,37 @@ VALUES
     4,
     '2026-10-06 12:00:00'
 );
+
+CREATE TYPE "NotificationType"
+AS ENUM (
+    'REVIEW_DUE',
+    'STREAK_RISK',
+    'ENCOURAGEMENT',
+    'BADGE_EARNED',
+    'SYSTEM'
+);
+
+CREATE TABLE notifications (
+    id TEXT PRIMARY KEY,
+
+    "userId" TEXT NOT NULL,
+
+    content TEXT NOT NULL,
+
+    type "NotificationType"
+        NOT NULL DEFAULT 'SYSTEM',
+
+    read BOOLEAN
+        NOT NULL DEFAULT FALSE,
+
+    "sentAt" TIMESTAMP(3)
+        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT notifications_user_fkey
+        FOREIGN KEY ("userId")
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX notifications_user_read_idx
+ON notifications ("userId", read);

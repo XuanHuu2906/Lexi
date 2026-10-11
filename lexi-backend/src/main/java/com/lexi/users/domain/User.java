@@ -13,10 +13,20 @@ import java.util.List;
 
 import com.lexi.review.domain.ReviewLog;
 import com.lexi.words.domain.Word;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "users")
 public class User {
+        @Enumerated(EnumType.STRING)
+        @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+        @Column(name = "role", nullable = false, columnDefinition = "\"UserRole\"")
+        private UserRole role;
+
         @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
         private List<ReviewLog> reviewLogs = new ArrayList<>();
 
@@ -65,6 +75,7 @@ public class User {
                         String email,
                         String passwordHash,
                         LocalDateTime now) {
+                this.role = UserRole.LEARNER;
                 this.id = id;
                 this.email = email;
                 this.passwordHash = passwordHash;
@@ -91,6 +102,10 @@ public class User {
 
         public String getEmail() {
                 return email;
+        }
+
+        public UserRole getRole() {
+                return role;
         }
 
         public void changeEmail(String email) {
