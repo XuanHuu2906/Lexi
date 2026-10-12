@@ -5,10 +5,10 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import com.lexi.review.domain.ReviewLog;
 import com.lexi.users.domain.User;
-import com.lexi.users.domain.UserRole;
 
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -16,6 +16,19 @@ import org.hibernate.type.SqlTypes;
 @Entity
 @Table(name = "words")
 public class Word {
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "examples", nullable = false, columnDefinition = "text[]")
+    private List<String> examples = new ArrayList<>();
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "synonyms", nullable = false, columnDefinition = "text[]")
+    private List<String> synonyms = new ArrayList<>();
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "antonyms", nullable = false, columnDefinition = "text[]")
+    private List<String> antonyms = new ArrayList<>();
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status", nullable = false, columnDefinition = "\"WordStatus\"")
@@ -110,5 +123,23 @@ public class Word {
         }
 
         this.status = newStatus;
+    }
+
+    public void appendExamples(
+            List<String> newExamples,
+            LocalDateTime now) {
+        Objects.requireNonNull(newExamples);
+        Objects.requireNonNull(now);
+
+        List<String> updated = new ArrayList<>(this.examples);
+
+        updated.addAll(newExamples);
+
+        this.examples = updated;
+        this.updatedAt = now;
+    }
+
+    public List<String> getExamples() {
+        return new ArrayList<>(examples);
     }
 }
