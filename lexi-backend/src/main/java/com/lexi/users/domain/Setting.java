@@ -5,10 +5,38 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "settings")
 public class Setting {
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "topics", nullable = false, columnDefinition = "text[]")
+    private List<String> topics = new ArrayList<>();
+
+    public List<String> getTopics() {
+        return List.copyOf(topics);
+    }
+
+    public void replaceTopics(
+            List<String> newTopics,
+            LocalDateTime now) {
+        if (newTopics == null ||
+                newTopics.stream().anyMatch(
+                        topic -> topic == null || topic.isBlank())) {
+            throw new IllegalArgumentException(
+                    "Topics must contain non-blank strings");
+        }
+
+        if (now == null) {
+            throw new IllegalArgumentException(
+                    "Updated time is required");
+        }
+
+        this.topics = new ArrayList<>(newTopics);
+        this.updatedAt = now;
+    }
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
