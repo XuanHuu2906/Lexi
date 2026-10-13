@@ -20,6 +20,7 @@ import java.util.Optional;
 import org.springframework.test.context.jdbc.Sql;
 import jakarta.persistence.EntityManager;
 import com.lexi.users.domain.UserRole;
+import com.lexi.users.domain.AuthProvider;
 
 @Testcontainers
 @DataJpaTest
@@ -279,4 +280,60 @@ class UserRepositoryTest {
                 assertThat(loaded.getRole())
                                 .isEqualTo(UserRole.ADMIN);
         }
+
+        @Test
+        void shouldMapAuthProviderInBothDirections() {
+
+                String existingUserId = "cm_test_existing_user";
+
+                // PHẦN 1: PostgreSQL -> Java
+                User existingUser = userRepository
+                                .findById(existingUserId)
+                                .orElseThrow();
+
+                assertThat(existingUser.getProvider())
+                                .isEqualTo(AuthProvider.LOCAL);
+
+                // PHẦN 2: Thay đổi trực tiếp tại PostgreSQL
+                jdbcTemplate.update("""
+                                UPDATE users
+                                SET provider = 'GOOGLE'::"AuthProvider"
+                                WHERE id = ?
+                                """,
+                                existingUserId);
+
+                // Loại bỏ entity đã cache trong Persistence Context
+                entityManager.clear();
+
+                // Đọc lại, Hibernate phải hiểu được GOOGLE
+                User reloaded = userRepository
+                                .findById(existingUserId)
+                                .orElseThrow();
+
+                assertThat(reloaded.getProvider())
+                                .isEqualTo(AuthProvider.GOOGLE);
+
+                // PHẦN 3: Java -> PostgreSQL
+                LocalDateTime now = LocalDateTime.of(2026, 10, 12, 18, 0);
+
+                User localUser = new User(
+                                "cm_auth_provider_test_001",
+                                "provider-test@lexi.test",
+                                "hashed-password",
+                                now);
+
+                userRepository.saveAndFlush(localUser);
+
+                String storedProvider = jdbcTemplate.queryForObject("""
+                                SELECT provider::text
+                                FROM users
+                                WHERE id = ?
+                                """,
+                                String.class,
+                                localUser.getId());
+
+                assertThat(storedProvider)
+                                .isEqualTo("LOCAL");
+        }
+
 }
