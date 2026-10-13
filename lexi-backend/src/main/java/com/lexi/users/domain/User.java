@@ -22,6 +22,12 @@ import org.hibernate.type.SqlTypes;
 @Entity
 @Table(name = "users")
 public class User {
+
+        @Enumerated(EnumType.STRING)
+        @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+        @Column(name = "provider", nullable = false, columnDefinition = "\"AuthProvider\"")
+        private AuthProvider provider;
+
         @Enumerated(EnumType.STRING)
         @JdbcTypeCode(SqlTypes.NAMED_ENUM)
         @Column(name = "role", nullable = false, columnDefinition = "\"UserRole\"")
@@ -75,11 +81,12 @@ public class User {
                         String email,
                         String passwordHash,
                         LocalDateTime now) {
+
                 this.role = UserRole.LEARNER;
                 this.id = id;
                 this.email = email;
                 this.passwordHash = passwordHash;
-
+                this.provider = AuthProvider.LOCAL;
                 this.emailVerified = false;
                 this.failedLoginAttempts = 0;
 
@@ -116,5 +123,9 @@ public class User {
                 }
 
                 this.email = email;
+        }
+
+        public AuthProvider getProvider() {
+                return provider;
         }
 }

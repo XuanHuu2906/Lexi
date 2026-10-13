@@ -1,7 +1,6 @@
 
 package com.lexi.words.repository;
 
-import com.lexi.users.domain.Setting;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,105 +13,83 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import com.lexi.words.domain.Word;
+
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 
 @Testcontainers
 @DataJpaTest
-@AutoConfigureTestDatabase(
-    replace = AutoConfigureTestDatabase.Replace.NONE
-)
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Sql(scripts = {
-    "/sql/user-repository-schema.sql",
-    "/sql/setting-topics-schema.sql"
+    "/sql/user-repository-schema.sql"
 })
 class WordTextArrayTest {
 
-    @Container
-    @ServiceConnection
-    static final PostgreSQLContainer postgres =
-        new PostgreSQLContainer("postgres:17");
+  @Container
+  @ServiceConnection
+  static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17");
 
-    @Autowired
-    EntityManager entityManager;
+  @Autowired
+  EntityManager entityManager;
 
-    @Autowired
-    JdbcTemplate jdbcTemplate;
+  @Autowired
+  JdbcTemplate jdbcTemplate;
 
-    @Test
-    void shouldRoundTripTextArrayWithUnicode() {
+  @Test
+  void shouldReadAndUpdateWordTextArrays() {
+    String id = "cm_word_array_001";
 
-        String id = "cm_test_setting_1";
-        LocalDateTime now =
-            LocalDateTime.of(2026, 10, 12, 13, 0);
+    jdbcTemplate.update("""
+        INSERT INTO words (
+            id, "userId", term, meaning,
+            examples, synonyms, antonyms, "updatedAt"
+        )
+        VALUES (
+            ?, ?, ?, ?,
+            ARRAY[?, ?]::text[],
+            ARRAY[?]::text[],
+            ARRAY[?]::text[],
+            CURRENT_TIMESTAMP
+        )
+        """,
+        id,
+        "cm_test_existing_user",
+        "negotiate",
+        "đàm phán",
+        "We need to negotiate.",
+        "Chúng ta cần đàm phán.",
+        "discuss",
+        "refuse");
 
-        // 1. INSERT trực tiếp vào PostgreSQL
-        jdbcTemplate.update("""
-            INSERT INTO settings (
-                id, "userId", topics, "updatedAt"
-            )
-            VALUES (?, ?, ARRAY[?, ?, ?]::text[], ?)
-            """,
-            id,
-            "cm_test_existing_user",
-            "TOEIC",
-            "Giao tiếp",
-            "C++, Java",
-            now
-        );
+    entityManager.clear();
 
-        // 2. Đọc từ SQL ARRAY thành Java List
-        entityManager.clear();
+    Word word = entityManager.find(Word.class, id);
 
-        Setting setting =
-            entityManager.find(Setting.class, id);
+    assertThat(word.getExamples())
+        .containsExactly(
+            "We need to negotiate.",
+            "Chúng ta cần đàm phán.");
 
-        assertThat(setting).isNotNull();
+    assertThat(word.getSynonyms())
+        .containsExactly("discuss");
 
-        assertThat(setting.getTopics())
-            .containsExactly(
-                "TOEIC",
-                "Giao tiếp",
-                "C++, Java"
-            );
+    assertThat(word.getAntonyms())
+        .containsExactly("refuse");
 
-        // 3. Thay đổi managed entity
-        setting.replaceTopics(
-            List.of("Đàm phán", "Sales, Marketing"),
-            now.plusMinutes(1)
-        );
+    word.appendExamples(
+        List.of("Let's negotiate."),
+        LocalDateTime.of(2026, 10, 12, 15, 0));
 
-        entityManager.flush();
+    entityManager.flush();
 
-        // 4. Đọc SQL trực tiếp để chứng minh UPDATE
-        List<String> dbTopics =
-            jdbcTemplate.queryForObject(
-                "SELECT topics FROM settings WHERE id = ?",
-                (rs, rowNum) -> Arrays.asList(
-                    (String[]) rs.getArray("topics").getArray()
-                ),
-                id
-            );
+    String saved = jdbcTemplate.queryForObject(
+        "SELECT examples[3] FROM words WHERE id = ?",
+        String.class,
+        id);
 
-        assertThat(dbTopics)
-            .containsExactly(
-                "Đàm phán",
-                "Sales, Marketing"
-            );
-
-        // 5. Buộc Hibernate đọc lại database
-        entityManager.clear();
-
-        Setting reloaded =
-            entityManager.find(Setting.class, id);
-
-        assertThat(reloaded.getTopics())
-            .containsExactly(
-                "Đàm phán",
-                "Sales, Marketing"
-            );
-    }
+    assertThat(saved).isEqualTo("Let's negotiate.");
+  }
 }

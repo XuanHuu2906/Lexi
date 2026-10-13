@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.*;
     "/sql/user-repository-schema.sql",
     "/sql/setting-topics-schema.sql"
 })
-class WordTextArrayTest {
+class SettingTextArrayTest {
 
     @Container
     @ServiceConnection

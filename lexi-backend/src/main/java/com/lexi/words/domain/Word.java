@@ -142,4 +142,12 @@ public class Word {
     public List<String> getExamples() {
         return new ArrayList<>(examples);
     }
+
+    public List<String> getSynonyms() {
+        return new ArrayList<>(synonyms);
+    }
+
+    public List<String> getAntonyms() {
+        return new ArrayList<>(antonyms);
+    }
 }
