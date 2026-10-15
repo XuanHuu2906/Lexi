@@ -5,7 +5,7 @@ spring:
 
 lexi:
   security:
-    jwt-secret: ${JWT_SECRET:dev-only-secret-change-me}
+    jwt-secret: ${JWT_SECRET:dev-only-secret-for-lexi-hs256-at-least-32-bytes}
     access-token-ttl: ${JWT_ACCESS_EXPIRES:15m}
     refresh-token-days: ${JWT_REFRESH_EXPIRES_DAYS:30}
 
