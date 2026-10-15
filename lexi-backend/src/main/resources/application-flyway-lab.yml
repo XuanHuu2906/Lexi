@@ -1,0 +1,18 @@
+spring:
+  config:
+    activate:
+      on-profile: flyway-lab
+
+  datasource:
+    url: ${LEXI_FLYWAY_LAB_URL:jdbc:postgresql://localhost:5432/lexi_flyway_lab}
+    username: ${LEXI_FLYWAY_LAB_USER:postgres}
+    password: ${LEXI_FLYWAY_LAB_PASSWORD:postgres}
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    locations: classpath:db/migration
+
+  jpa:
+    hibernate:
+      ddl-auto: validate

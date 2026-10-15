@@ -8,7 +8,9 @@ spring:
   jackson:
     deserialization:
       fail-on-unknown-properties: true
-      
+  
+  flyway:
+    enabled: false
 server:
   port: 8080
 

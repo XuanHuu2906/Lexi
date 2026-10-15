@@ -12,7 +12,7 @@ spring:
 
 lexi:
   security:
-    jwt-secret: test-secret-only
+    jwt-secret: test-only-secret-for-lexi-hs256-at-least-32-bytes
     access-token-ttl: 15m
     refresh-token-days: 30
 

@@ -1,4 +1,4 @@
-package com.lexi.progress.domain;
+package com.lexi.progress.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -12,7 +12,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-import com.lexi.progress.repository.StreakRepository;
+import com.lexi.progress.domain.Streak;
 import com.lexi.users.domain.User;
 
 @DataJpaTest
