@@ -21,6 +21,14 @@ import java.util.Map;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import com.lexi.security.account.AccountStateChecker;
+
+import org.junit.jupiter.api.BeforeEach;
+
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -31,135 +39,122 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class JwtAuthenticationFilterTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+  @MockitoBean(enforceOverride = true)
+  private AccountStateChecker accountStateChecker;
 
-    @Autowired
-    private JwtTokenService jwtTokenService;
+  @BeforeEach
+  void allowTestAccounts() {
 
-    @RestController
-    static class JwtProbeController {
+    when(accountStateChecker.isAllowed(anyString()))
+        .thenReturn(true);
+  }
 
-        @GetMapping("/__test/jwt/me")
-        Map<String, String> me(
-                @AuthenticationPrincipal CurrentUser user
-        ) {
-            return Map.of(
-                    "userId", user.userId(),
-                    "email", user.email()
-            );
-        }
+  @Autowired
+  private MockMvc mockMvc;
+
+  @Autowired
+  private JwtTokenService jwtTokenService;
+
+  @RestController
+  static class JwtProbeController {
+
+    @GetMapping("/__test/jwt/me")
+    Map<String, String> me(
+        @AuthenticationPrincipal CurrentUser user) {
+      return Map.of(
+          "userId", user.userId(),
+          "email", user.email());
     }
+  }
 
-    private String issueToken(
-            String userId,
-            String email
-    ) {
-        return jwtTokenService.issueToken(userId, email);
-    }
+  private String issueToken(
+      String userId,
+      String email) {
+    return jwtTokenService.issueToken(userId, email);
+  }
 
-    @Test
-    void shouldAuthenticateUsingCookie() throws Exception {
+  @Test
+  void shouldAuthenticateUsingCookie() throws Exception {
 
-        String token = issueToken(
-                "cookie_user",
-                "cookie@lexi.test"
-        );
+    String token = issueToken(
+        "cookie_user",
+        "cookie@lexi.test");
 
-        mockMvc.perform(
-                get("/__test/jwt/me")
-                    .cookie(new Cookie("access_token", token))
-        )
+    mockMvc.perform(
+        get("/__test/jwt/me")
+            .cookie(new Cookie("access_token", token)))
         .andExpect(status().isOk())
         .andExpect(
-                jsonPath("$.userId").value("cookie_user")
-        )
+            jsonPath("$.userId").value("cookie_user"))
         .andExpect(
-                jsonPath("$.email").value("cookie@lexi.test")
-        );
-    }
+            jsonPath("$.email").value("cookie@lexi.test"));
+  }
 
-    @Test
-    void shouldAuthenticateUsingBearerToken() throws Exception {
+  @Test
+  void shouldAuthenticateUsingBearerToken() throws Exception {
 
-        String token = issueToken(
-                "bearer_user",
-                "bearer@lexi.test"
-        );
+    String token = issueToken(
+        "bearer_user",
+        "bearer@lexi.test");
 
-        mockMvc.perform(
-                get("/__test/jwt/me")
-                    .header(
-                            HttpHeaders.AUTHORIZATION,
-                            "Bearer " + token
-                    )
-        )
+    mockMvc.perform(
+        get("/__test/jwt/me")
+            .header(
+                HttpHeaders.AUTHORIZATION,
+                "Bearer " + token))
         .andExpect(status().isOk())
         .andExpect(
-                jsonPath("$.userId").value("bearer_user")
-        );
-    }
+            jsonPath("$.userId").value("bearer_user"));
+  }
 
-    @Test
-    void shouldPreferCookieOverBearer() throws Exception {
+  @Test
+  void shouldPreferCookieOverBearer() throws Exception {
 
-        String cookieToken = issueToken(
-                "cookie_user",
-                "cookie@lexi.test"
-        );
+    String cookieToken = issueToken(
+        "cookie_user",
+        "cookie@lexi.test");
 
-        String bearerToken = issueToken(
-                "bearer_user",
-                "bearer@lexi.test"
-        );
+    String bearerToken = issueToken(
+        "bearer_user",
+        "bearer@lexi.test");
 
-        mockMvc.perform(
-                get("/__test/jwt/me")
-                    .cookie(
-                            new Cookie(
-                                    "access_token",
-                                    cookieToken
-                            )
-                    )
-                    .header(
-                            HttpHeaders.AUTHORIZATION,
-                            "Bearer " + bearerToken
-                    )
-        )
+    mockMvc.perform(
+        get("/__test/jwt/me")
+            .cookie(
+                new Cookie(
+                    "access_token",
+                    cookieToken))
+            .header(
+                HttpHeaders.AUTHORIZATION,
+                "Bearer " + bearerToken))
         .andExpect(status().isOk())
         .andExpect(
-                jsonPath("$.userId").value("cookie_user")
-        );
-    }
+            jsonPath("$.userId").value("cookie_user"));
+  }
 
-    @Test
-    void shouldRejectRequestWithoutToken() throws Exception {
+  @Test
+  void shouldRejectRequestWithoutToken() throws Exception {
 
-        mockMvc.perform(get("/__test/jwt/me"))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void shouldNotFallbackWhenCookieIsInvalid() throws Exception {
-
-        String validBearer = issueToken(
-                "bearer_user",
-                "bearer@lexi.test"
-        );
-
-        mockMvc.perform(
-                get("/__test/jwt/me")
-                    .cookie(
-                            new Cookie(
-                                    "access_token",
-                                    "invalid.jwt.value"
-                            )
-                    )
-                    .header(
-                            HttpHeaders.AUTHORIZATION,
-                            "Bearer " + validBearer
-                    )
-        )
+    mockMvc.perform(get("/__test/jwt/me"))
         .andExpect(status().isUnauthorized());
-    }
+  }
+
+  @Test
+  void shouldNotFallbackWhenCookieIsInvalid() throws Exception {
+
+    String validBearer = issueToken(
+        "bearer_user",
+        "bearer@lexi.test");
+
+    mockMvc.perform(
+        get("/__test/jwt/me")
+            .cookie(
+                new Cookie(
+                    "access_token",
+                    "invalid.jwt.value"))
+            .header(
+                HttpHeaders.AUTHORIZATION,
+                "Bearer " + validBearer))
+        .andExpect(status().isUnauthorized());
+  }
 }

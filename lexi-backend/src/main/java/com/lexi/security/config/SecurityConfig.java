@@ -11,21 +11,23 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
-
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import static org.springframework.security.config.Customizer.withDefaults;
 import com.lexi.security.jwt.JwtAuthenticationFilter;
 import com.lexi.security.jwt.JwtTokenService;
-
+import com.lexi.security.account.AccountStateChecker;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
+@EnableMethodSecurity
 @EnableWebSecurity
 public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            JwtTokenService jwtTokenService) throws Exception {
+            JwtTokenService jwtTokenService,
+            AccountStateChecker accountStateChecker) throws Exception {
 
         http
                 .authorizeHttpRequests(auth -> auth
@@ -61,9 +63,10 @@ public class SecurityConfig {
                                         HttpServletResponse.SC_UNAUTHORIZED)));
 
         http.addFilterBefore(
-                new JwtAuthenticationFilter(jwtTokenService),
+                new JwtAuthenticationFilter(
+                        jwtTokenService,
+                        accountStateChecker),
                 UsernamePasswordAuthenticationFilter.class);
-
 
         return http.build();
     }
