@@ -14,116 +14,130 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.web.filter.OncePerRequestFilter;
-
+import com.lexi.security.account.AccountStateChecker;
 import java.io.IOException;
 import java.util.List;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final String ACCESS_COOKIE = "access_token";
-    private static final String BEARER_PREFIX = "Bearer ";
+  private static final String ACCESS_COOKIE = "access_token";
+  private static final String BEARER_PREFIX = "Bearer ";
 
-    private final JwtTokenService jwtTokenService;
+  private final JwtTokenService jwtTokenService;
+  private final AccountStateChecker accountStateChecker;
 
-    public JwtAuthenticationFilter(
-            JwtTokenService jwtTokenService
-    ) {
-        this.jwtTokenService = jwtTokenService;
+  public JwtAuthenticationFilter(
+      JwtTokenService jwtTokenService,
+      AccountStateChecker accountStateChecker) {
+    this.jwtTokenService = jwtTokenService;
+    this.accountStateChecker = accountStateChecker;
+  }
+
+  @Override
+  protected boolean shouldNotFilter(
+      HttpServletRequest request) {
+    String path = request.getRequestURI();
+    String healthPath = request.getContextPath() + "/health";
+
+    return "GET".equals(request.getMethod())
+        && healthPath.equals(path);
+  }
+
+  @Override
+  protected void doFilterInternal(
+      HttpServletRequest request,
+      HttpServletResponse response,
+      FilterChain filterChain) throws ServletException, IOException {
+
+    // 1. Cookie được ưu tiên trước Bearer
+    String token = resolveToken(request);
+
+    // 2. Không có JWT -> để SecurityFilterChain
+    // xử lý public/protected endpoint
+    if (token == null) {
+      filterChain.doFilter(request, response);
+      return;
     }
 
-    @Override
-    protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain
-    ) throws ServletException, IOException {
+    // 3. Xác minh JWT đã chọn
+    Jwt jwt;
 
-        // 1. Cookie được ưu tiên trước Bearer
-        String token = resolveToken(request);
+    try {
+      jwt = jwtTokenService.verifyToken(token);
+    } catch (JwtException | IllegalArgumentException ex) {
+      SecurityContextHolder.clearContext();
 
-        // 2. Không có JWT -> để SecurityFilterChain
-        //    xử lý public/protected endpoint
-        if (token == null) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        // 3. Xác minh JWT đã chọn
-        Jwt jwt;
-
-        try {
-            jwt = jwtTokenService.verifyToken(token);
-        } catch (JwtException | IllegalArgumentException ex) {
-            SecurityContextHolder.clearContext();
-
-            response.setStatus(
-                    HttpServletResponse.SC_UNAUTHORIZED
-            );
-            return;
-        }
-
-        // 4. Xây dựng principal từ claims đã xác minh
-        CurrentUser currentUser = new CurrentUser(
-                jwt.getSubject(),
-                jwt.getClaimAsString("email")
-        );
-
-        // 5. Tạo Authentication đã được xác thực
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(
-                        currentUser,
-                        null,
-                        List.of()
-                );
-
-        // 6. Tạo SecurityContext mới
-        SecurityContext context =
-                SecurityContextHolder.createEmptyContext();
-
-        context.setAuthentication(authentication);
-        SecurityContextHolder.setContext(context);
-
-        // 7. Cho request tiếp tục tới các filter khác
-        try {
-            filterChain.doFilter(request, response);
-        } finally {
-            SecurityContextHolder.clearContext();
-        }
+      response.setStatus(
+          HttpServletResponse.SC_UNAUTHORIZED);
+      return;
     }
 
-    private String resolveToken(
-            HttpServletRequest request
-    ) {
+    // JWT hợp lệ nhưng tài khoản có thể đã bị khóa
+    if (!accountStateChecker.isAllowed(jwt.getSubject())) {
 
-        // Ưu tiên cookie access_token
-        Cookie[] cookies = request.getCookies();
+      SecurityContextHolder.clearContext();
 
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if (ACCESS_COOKIE.equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
-            }
-        }
+      response.setStatus(
+          HttpServletResponse.SC_UNAUTHORIZED);
 
-        // Chỉ fallback nếu không có access_token cookie
-        String authorization =
-                request.getHeader(HttpHeaders.AUTHORIZATION);
-
-        if (authorization != null
-                && authorization.regionMatches(
-                        true,
-                        0,
-                        BEARER_PREFIX,
-                        0,
-                        BEARER_PREFIX.length()
-                )) {
-
-            return authorization
-                    .substring(BEARER_PREFIX.length())
-                    .trim();
-        }
-
-        return null;
+      return;
     }
+
+    // 4. Xây dựng principal từ claims đã xác minh
+    CurrentUser currentUser = new CurrentUser(
+        jwt.getSubject(),
+        jwt.getClaimAsString("email"));
+
+    // 5. Tạo Authentication đã được xác thực
+    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+        currentUser,
+        null,
+        List.of());
+
+    // 6. Tạo SecurityContext mới
+    SecurityContext context = SecurityContextHolder.createEmptyContext();
+
+    context.setAuthentication(authentication);
+    SecurityContextHolder.setContext(context);
+
+    // 7. Cho request tiếp tục tới các filter khác
+    try {
+      filterChain.doFilter(request, response);
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
+  }
+
+  private String resolveToken(
+      HttpServletRequest request) {
+
+    // Ưu tiên cookie access_token
+    Cookie[] cookies = request.getCookies();
+
+    if (cookies != null) {
+      for (Cookie cookie : cookies) {
+        if (ACCESS_COOKIE.equals(cookie.getName())) {
+          return cookie.getValue();
+        }
+      }
+    }
+
+    // Chỉ fallback nếu không có access_token cookie
+    String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+
+    if (authorization != null
+        && authorization.regionMatches(
+            true,
+            0,
+            BEARER_PREFIX,
+            0,
+            BEARER_PREFIX.length())) {
+
+      return authorization
+          .substring(BEARER_PREFIX.length())
+          .trim();
+    }
+
+    return null;
+  }
 }

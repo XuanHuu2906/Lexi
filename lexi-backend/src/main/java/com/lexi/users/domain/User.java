@@ -128,4 +128,8 @@ public class User {
         public AuthProvider getProvider() {
                 return provider;
         }
+
+        public LocalDateTime getDisabledAt() {
+                return disabledAt;
+        }
 }
