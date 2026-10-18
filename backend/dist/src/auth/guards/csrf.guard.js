@@ -33,6 +33,9 @@ let CsrfGuard = class CsrfGuard {
         if (isPublic) {
             return true;
         }
+        if (req.user?.authMechanism === 'bearer') {
+            return true;
+        }
         const cookies = (req.cookies ?? {});
         const cookieToken = cookies[auth_cookies_1.CSRF_COOKIE];
         const headerToken = req.headers[auth_cookies_1.CSRF_HEADER];

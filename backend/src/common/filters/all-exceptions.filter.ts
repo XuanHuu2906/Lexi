@@ -29,6 +29,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+    const pathWithoutQuery = request.url.split('?')[0];
+    const isAuth = pathWithoutQuery.startsWith('/auth/');
+    if (isAuth) response.setHeader('Cache-Control', 'no-store');
 
     const status =
       exception instanceof HttpException
@@ -52,10 +55,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     if (status >= 500) {
-      this.logger.error(
-        `${request.method} ${request.url}`,
-        exception instanceof Error ? exception.stack : String(exception),
-      );
+      if (isAuth) {
+        // ORM/transport errors can include credential-bearing inputs in stacks.
+        this.logger.error(`Authentication request failed (${status})`);
+      } else
+        this.logger.error(
+          `${request.method} ${request.url}`,
+          exception instanceof Error ? exception.stack : String(exception),
+        );
     }
 
     const body: ErrorBody = {
@@ -63,7 +70,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       message,
       error,
-      path: request.url,
+      path: isAuth ? pathWithoutQuery : request.url,
       timestamp: new Date().toISOString(),
     };
 

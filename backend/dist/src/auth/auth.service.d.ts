@@ -4,12 +4,14 @@ import type { User } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+export declare const REFRESH_REUSE_GRACE_MS = 5000;
 export type SafeUser = Omit<User, 'passwordHash' | 'failedLoginAttempts' | 'lockedUntil' | 'disabledAt' | 'disabledReason' | 'lastActiveAt'>;
 export interface IssuedTokens {
     accessToken: string;
     refreshToken: string;
     csrfToken: string;
     refreshDays: number;
+    accessExpiresIn: number;
 }
 export declare class AuthService {
     private readonly prisma;

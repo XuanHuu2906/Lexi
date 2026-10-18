@@ -2,6 +2,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -9,7 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import type { SignOptions } from 'jsonwebtoken';
-import type { User } from '../../generated/prisma/client';
+import type { Prisma, User } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -18,6 +19,9 @@ import { JwtPayload } from './types/jwt-payload.type';
 const BCRYPT_ROUNDS = 10;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+// Deny overlapping refreshes without revoking the winner's replacement token.
+// This window NEVER reissues credentials or extends the consumed token lifetime.
+export const REFRESH_REUSE_GRACE_MS = 5_000;
 
 /** User fields safe to return to clients. */
 export type SafeUser = Omit<
@@ -30,12 +34,13 @@ export type SafeUser = Omit<
   | 'lastActiveAt'
 >;
 
-/** Freshly minted credentials to be written into cookies by the controller. */
+/** Shared issuance result projected into cookie or native JSON transport. */
 export interface IssuedTokens {
   accessToken: string;
   refreshToken: string;
   csrfToken: string;
   refreshDays: number;
+  accessExpiresIn: number;
 }
 
 @Injectable()
@@ -57,17 +62,31 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        passwordHash,
-        setting: { create: {} }, // schema defaults
-        streak: { create: {} },
-      },
-    });
-    // TODO(Phase 10): send a confirmation email via Resend once RESEND_KEY is set.
-    const tokens = await this.issueTokens(user);
-    return { user: this.sanitize(user), tokens };
+    try {
+      return await this.prisma.$transaction(async (db) => {
+        const user = await db.user.create({
+          data: {
+            email: dto.email,
+            passwordHash,
+            setting: { create: {} },
+            streak: { create: {} },
+          },
+        });
+        const tokens = await this.issueTokens(user, db);
+        return { user: this.sanitize(user), tokens };
+      });
+    } catch (error: unknown) {
+      // Concurrent registration can pass the precheck but lose the unique insert.
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Email already registered');
+      }
+      throw error;
+    }
   }
 
   async login(
@@ -99,24 +118,38 @@ export class AuthService {
 
     const ok = await bcrypt.compare(dto.password, user.passwordHash);
     if (!ok) {
-      await this.registerFailedAttempt(user.id, user.failedLoginAttempts);
+      await this.registerFailedAttempt(user.id);
       throw invalid();
     }
 
-    // Success — refresh the activity stamp and clear any accumulated failures.
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { failedLoginAttempts: 0, lockedUntil: null, lastActiveAt: new Date() },
+    return this.prisma.$transaction(async (db) => {
+      await db.$queryRaw`SELECT id FROM users WHERE id = ${user.id} FOR UPDATE`;
+      const current = await db.user.findUnique({ where: { id: user.id } });
+      if (!current || current.passwordHash !== user.passwordHash)
+        throw invalid();
+      if (
+        current.disabledAt ||
+        (current.lockedUntil && current.lockedUntil > new Date())
+      ) {
+        throw new ForbiddenException('Account locked');
+      }
+      await db.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+          lastActiveAt: new Date(),
+        },
+      });
+      const tokens = await this.issueTokens(current, db);
+      return { user: this.sanitize(current), tokens };
     });
-
-    const tokens = await this.issueTokens(user);
-    return { user: this.sanitize(user), tokens };
   }
 
   /**
    * Rotate a refresh token: validate the presented token, revoke it, and issue
    * a fresh set. Detects reuse of an already-rotated token (possible theft) and
-   * revokes the whole family as a precaution.
+   * revokes all active refresh credentials for the user after the overlap window.
    */
   async refresh(rawToken: string | undefined): Promise<IssuedTokens> {
     const expired = () => new UnauthorizedException('Session expired');
@@ -125,54 +158,65 @@ export class AuthService {
     }
 
     const tokenHash = this.hashToken(rawToken);
-    const record = await this.prisma.refreshToken.findUnique({
+    const initial = await this.prisma.refreshToken.findUnique({
       where: { tokenHash },
     });
-    if (!record) {
-      throw expired();
-    }
+    if (!initial) throw expired();
 
-    // Reuse of an already-revoked token → treat as compromise, revoke the
-    // user's whole token family.
-    if (record.revokedAt) {
-      await this.prisma.refreshToken.updateMany({
-        where: { userId: record.userId, revokedAt: null },
-        data: { revokedAt: new Date() },
+    const outcome = await this.prisma.$transaction(async (db) => {
+      // Per-user DB lock also serializes replay revocation against another session's
+      // rotation. No in-process lock/cache: works across multiple server instances.
+      await db.$queryRaw`SELECT id FROM users WHERE id = ${initial.userId} FOR UPDATE`;
+      const record = await db.refreshToken.findUnique({ where: { tokenHash } });
+      const now = new Date();
+      if (!record) return { kind: 'expired' } as const;
+      if (record.revokedAt) {
+        if (
+          now.getTime() - record.revokedAt.getTime() <=
+          REFRESH_REUSE_GRACE_MS
+        ) {
+          return { kind: 'concurrent' } as const;
+        }
+        await db.refreshToken.updateMany({
+          where: { userId: record.userId, revokedAt: null },
+          data: { revokedAt: now },
+        });
+        // Throw OUTSIDE the transaction so the replay revocation commits.
+        return { kind: 'expired' } as const;
+      }
+      const user = await db.user.findUnique({ where: { id: record.userId } });
+      if (
+        record.expiresAt <= now ||
+        !user ||
+        user.disabledAt ||
+        (user.lockedUntil && user.lockedUntil > now)
+      ) {
+        return { kind: 'expired' } as const;
+      }
+      const consumed = await db.refreshToken.updateMany({
+        where: { id: record.id, revokedAt: null, expiresAt: { gt: now } },
+        data: { revokedAt: now },
       });
-      throw expired();
-    }
-
-    if (record.expiresAt < new Date()) {
-      throw expired();
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: record.userId },
+      if (consumed.count !== 1) return { kind: 'concurrent' } as const;
+      await db.user.update({
+        where: { id: user.id },
+        data: { lastActiveAt: now },
+      });
+      return {
+        kind: 'issued',
+        tokens: await this.issueTokens(user, db),
+      } as const;
     });
-    if (!user) {
-      throw expired();
+    if (outcome.kind === 'concurrent') {
+      throw new ConflictException(
+        'Refresh credential already consumed; sign in again if the new credential is unavailable',
+      );
     }
-
-    // An admin-disabled account cannot refresh (locking also revokes its tokens,
-    // but check defensively in case a valid token predates the lock).
-    if (user.disabledAt) {
-      throw expired();
-    }
-
-    // Rotate: revoke the old token, bump activity, then mint a fresh set.
-    await this.prisma.refreshToken.update({
-      where: { id: record.id },
-      data: { revokedAt: new Date() },
-    });
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastActiveAt: new Date() },
-    });
-
-    return this.issueTokens(user);
+    if (outcome.kind === 'expired') throw expired();
+    return outcome.tokens;
   }
 
-  /** Revoke the presented refresh token (best-effort; logout must always succeed). */
+  /** Idempotently revoke exactly this credential. DB errors propagate: never claim false success. */
   async logout(rawToken: string | undefined): Promise<void> {
     if (!rawToken) {
       return;
@@ -184,12 +228,36 @@ export class AuthService {
     });
   }
 
-  private async issueTokens(user: User): Promise<IssuedTokens> {
+  private async issueTokens(
+    user: User,
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<IssuedTokens> {
     const accessToken = await this.signAccessToken(user.id, user.email);
+    const claims = this.jwt.decode<{ iat?: number; exp?: number }>(accessToken);
+    if (
+      !Number.isInteger(claims?.iat) ||
+      !Number.isInteger(claims?.exp) ||
+      Number(claims.exp) <= Number(claims.iat)
+    ) {
+      throw new InternalServerErrorException(
+        'Invalid access token lifetime configuration',
+      );
+    }
+    const accessExpiresIn = Number(claims.exp) - Number(claims.iat);
     const refreshDays = this.config.get<number>('JWT_REFRESH_EXPIRES_DAYS', 30);
-    const refreshToken = await this.createRefreshToken(user.id, refreshDays);
+    const refreshToken = await this.createRefreshToken(
+      user.id,
+      refreshDays,
+      db,
+    );
     const csrfToken = randomBytes(32).toString('hex');
-    return { accessToken, refreshToken, csrfToken, refreshDays };
+    return {
+      accessToken,
+      refreshToken,
+      csrfToken,
+      refreshDays,
+      accessExpiresIn,
+    };
   }
 
   private signAccessToken(sub: string, email: string): Promise<string> {
@@ -206,10 +274,11 @@ export class AuthService {
   private async createRefreshToken(
     userId: string,
     refreshDays: number,
+    db: Prisma.TransactionClient,
   ): Promise<string> {
     const raw = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + refreshDays * 24 * 60 * 60 * 1000);
-    await this.prisma.refreshToken.create({
+    await db.refreshToken.create({
       data: { userId, tokenHash: this.hashToken(raw), expiresAt },
     });
     return raw;
@@ -219,20 +288,22 @@ export class AuthService {
     return createHash('sha256').update(raw).digest('hex');
   }
 
-  private async registerFailedAttempt(
-    userId: string,
-    current: number,
-  ): Promise<void> {
-    const attempts = current + 1;
-    const shouldLock = attempts >= MAX_FAILED_ATTEMPTS;
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: shouldLock
-        ? {
-            failedLoginAttempts: 0,
-            lockedUntil: new Date(Date.now() + LOCK_DURATION_MS),
-          }
-        : { failedLoginAttempts: attempts },
+  private async registerFailedAttempt(userId: string): Promise<void> {
+    await this.prisma.$transaction(async (db) => {
+      await db.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+      const user = await db.user.findUnique({ where: { id: userId } });
+      if (!user || (user.lockedUntil && user.lockedUntil > new Date())) return;
+      const attempts = user.failedLoginAttempts + 1;
+      await db.user.update({
+        where: { id: userId },
+        data:
+          attempts >= MAX_FAILED_ATTEMPTS
+            ? {
+                failedLoginAttempts: 0,
+                lockedUntil: new Date(Date.now() + LOCK_DURATION_MS),
+              }
+            : { failedLoginAttempts: attempts },
+      });
     });
   }
 
