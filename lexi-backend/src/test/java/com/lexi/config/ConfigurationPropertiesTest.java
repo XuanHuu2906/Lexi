@@ -27,7 +27,7 @@ class ConfigurationPropertiesTest {
     @Test
     void shouldBindSecurityProperties() {
         assertThat(securityProperties.jwtSecret())
-                .isEqualTo("test-secret-only");
+                .isEqualTo("test-only-secret-for-lexi-hs256-at-least-32-bytes");
 
         assertThat(securityProperties.accessTokenTtl())
                 .isEqualTo(Duration.ofMinutes(15));
@@ -39,7 +39,7 @@ class ConfigurationPropertiesTest {
     @Test
     void shouldBindCorsProperties() {
         assertThat(corsProperties.allowedOrigins())
-                .containsExactly("http://localhost:5173");
+                .containsExactly("http://localhost:3001");
     }
 
     @Test

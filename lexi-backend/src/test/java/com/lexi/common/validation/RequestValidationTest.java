@@ -33,7 +33,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.lexi.config.PostgresTestConfig;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Import({PostgresTestConfig.class, RequestValidationTest.ValidationProbeController.class})
 class RequestValidationTest {
