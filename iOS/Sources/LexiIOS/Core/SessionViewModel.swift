@@ -4,7 +4,15 @@ import Observation
 @MainActor @Observable
 final class SessionViewModel {
     enum State { case launching, signedOut, authenticated(ApiMe), unavailable }
-    private(set) var state: State = .launching
+    private(set) var state: State = .launching {
+        didSet {
+            if case .authenticated(let me) = state { navigation.activate(userID: me.id) }
+            else { navigation.reset() }
+        }
+    }
+    let navigation = AppNavigation()
+    // Guest lookup is kept in memory only until login and explicit save/cancel.
+    var pendingLookup: WordInput?
     private(set) var busy = false
     private(set) var message: String?
     private(set) var retryAfter: Date?
@@ -19,10 +27,16 @@ final class SessionViewModel {
         self.session = session; self.api = api; self.clock = clock
     }
 
+    func clearFeedback() {
+        guard !busy else { return }
+        message = nil // Keep server cooldown when switching login/register forms.
+    }
+
     func observeInvalidations() async {
         for await id in session.invalidations {
             guard !Task.isCancelled else { return }
             if profileSessionID == id {
+                pendingLookup = nil
                 profileSessionID = nil
                 state = .signedOut
                 message = "Phiên đã kết thúc. Vui lòng đăng nhập lại."
@@ -82,6 +96,7 @@ final class SessionViewModel {
     }
 
     func logout() async {
+        pendingLookup = nil
         let id = UUID(); operation = id
         profileSessionID = nil; state = .signedOut; busy = true; message = nil; retryAfter = nil
         let report = await session.logout()

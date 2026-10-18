@@ -7,10 +7,12 @@ Ngày audit: 17/10/2026. Baseline: `87760f17f0e40ae87447bf6cda9e2609ae0642a5`, b
 
 ## 1. Nguồn và đường dẫn
 
+**Cập nhật Phase 4 — 18/10/2026:** PR #12 đã merge/deploy. Probe HTTPS khoảng 11:49 UTC xác minh Swagger đủ bốn `/auth/mobile/*`, health/database up, validation/unknown credential/no-store/không Set-Cookie. Người dùng xác nhận iPhone login cùng tài khoản web, relaunch giữ phiên và logout/login lại; G3 đạt. Xem [evidence](../evidence/phase4-rollout-2026-10-18.md). Bốn fixture auth native hiện theo contract đã triển khai; toàn bộ 46 fixture vẫn là dữ liệu tổng hợp. Ghi chú “đề xuất” trong cập nhật Phase 3 ở trên là lịch sử.
+
 - [Inventory đầy đủ](endpoint-inventory.md): 24 controllers, 77 routes; DTO, guard, throttle, HTTP status suy ra từ decorator và handler thực.
 - [main.ts](../../../backend/src/main.ts): không có global `/api` prefix, port mặc định `3000`, Swagger `/docs`; validation whitelist + forbidNonWhitelisted + implicit conversion.
 - [Next proxy](../../../frontend/next.config.ts): web `/api/*` → backend `/*`, backend mặc định `http://localhost:3000`.
-- Native dùng base URL của NestJS/ingress đã xác minh. URL staging HTTPS: **chưa được cung cấp**. Không dùng localhost của iPhone để truy cập Windows.
+- Native dùng base URL của NestJS/ingress đã xác minh: `https://lexi-backend-tf32.onrender.com`, không `/api`. Không dùng localhost của iPhone để truy cập Windows.
 - `GET http://127.0.0.1:3000/health` trong audit không kết nối được; không có HTTP response để xác nhận runtime contract. Không khởi động server với DB chưa xác minh là test/staging.
 
 ## 2. Envelope, status và lỗi
@@ -80,9 +82,9 @@ Khác biệt cần giữ trong baseline và mở issue riêng:
 - GET streak có side effect: không tự polling/retry vô hạn. Nhánh streak-freeze khi chưa đạt goal cần regression về gọi lặp, vì lastActiveDate không đổi trong nhánh đó.
 - Review ghi trong transaction nhưng đọc SRS trước transaction; concurrent submits và timeout/retry chưa an toàn. Quiz submit cũng chưa có atomic compare-and-swap/idempotency.
 
-## 5. Native auth — source và integration local Phase 4
+## 5. Native auth — đã triển khai Phase 4
 
-Đã triển khai ở NestJS và nối vào iOS. [ADR-006](../adr-006-native-auth.md) quy định lifecycle/replay; [báo cáo Phase 4](../ios-phase4-status.md) ghi tests local. Staging Swagger ngày 18/10 chưa có bốn routes, cần deploy `main` trước runtime iPhone. Các fixture là synthetic, không phải staging captures.
+Đã triển khai ở NestJS và nối vào iOS. [ADR-006](../adr-006-native-auth.md) quy định lifecycle/replay; [báo cáo Phase 4](../ios-phase4-status.md) ghi test local, probe staging và xác nhận iPhone. Staging Swagger ngày 18/10 khoảng 11:49 UTC đã có đủ bốn routes; G3 đạt sau xác nhận người dùng về login/restore/logout trên iPhone. Các fixture là synthetic, không phải staging captures.
 
 | Endpoint | Success | Input | data |
 |---|---|---|---|
@@ -111,4 +113,4 @@ AI trên server dùng OpenAI SDK tương thích; mặc định **DeepSeek**, kh�
 
 [Bộ fixture](fixtures/README.md) là dữ liệu tổng hợp dựa source/DTO đã đọc, không phải capture HTTP thật. Fixture không chứng minh server chạy hay có test account đã seed. Khi có DB riêng và staging, thay/bổ sung capture sạch; ghi commit, endpoint, status, expected keys và nguồn cho từng file. Không lưu token, cookie, password, email thật hoặc audio thật.
 
-Pending: GET health runtime (DB up); Swagger runtime; register/login/refresh cookie capture; native auth sau Phase 4; response stats/AI đầy đủ; multi-user ownership và idempotency e2e. Chỉ tick task yêu cầu HTTP thật khi có bằng chứng này.
+Đã có bằng chứng runtime cho health/database up, Swagger và các probe native validation/unknown credential/headers; các protected GET theo smoke Phase 3. Login/restore/logout native trên iPhone có xác nhận người dùng. Chưa có capture staging thành công của register/login/refresh cookie hoặc native (fixtures vẫn synthetic), response stats/AI đầy đủ, multi-user ownership và idempotency e2e. Chỉ tick task yêu cầu HTTP thật theo đúng phạm vi bằng chứng; không suy ra mutation/authenticated capture từ probe lỗi.

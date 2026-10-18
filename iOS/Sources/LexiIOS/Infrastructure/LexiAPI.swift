@@ -46,7 +46,7 @@ struct AuthAPI: NativeAuthenticating {
 }
 
 enum WordSort: String, Sendable { case newest, oldest }
-struct WordsQuery: Sendable {
+struct WordsQuery: Sendable, Equatable {
     var search: String? = nil
     var topic: String? = nil
     var status: BackendWordStatus? = nil
