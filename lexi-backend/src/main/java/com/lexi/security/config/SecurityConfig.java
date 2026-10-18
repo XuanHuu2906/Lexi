@@ -12,62 +12,118 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import static org.springframework.security.config.Customizer.withDefaults;
 import com.lexi.security.jwt.JwtAuthenticationFilter;
 import com.lexi.security.jwt.JwtTokenService;
 import com.lexi.security.account.AccountStateChecker;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import com.lexi.security.csrf.HeaderOnlyCsrfTokenRequestHandler;
+
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
+import com.lexi.security.error.JsonAuthenticationEntryPoint;
+import com.lexi.security.error.JsonAccessDeniedHandler;
+import java.util.Set;
 
 @Configuration
 @EnableMethodSecurity
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
-            JwtTokenService jwtTokenService,
-            AccountStateChecker accountStateChecker) throws Exception {
+  @Bean
+  public CookieCsrfTokenRepository csrfTokenRepository() {
 
-        http
-                .authorizeHttpRequests(auth -> auth
+    CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
 
-                        // Endpoint public hiện đã tồn tại
-                        .requestMatchers(
-                                HttpMethod.GET,
-                                "/health")
-                        .permitAll()
+    repository.setCookieName("csrf_token");
+    repository.setHeaderName("X-CSRF-Token");
+    repository.setCookiePath("/");
 
-                        // Mặc định: mọi endpoint khác cần xác thực
-                        .anyRequest().authenticated())
+    repository.setCookieCustomizer(
+        cookie -> cookie.sameSite("Lax"));
 
-                // Giữ CSRF mặc định, chưa triển khai
-                // contract cookie + header của Lexi
-                .csrf(withDefaults())
+    return repository;
+  }
 
-                // Lexi là REST API, không dùng trang login HTML
-                .formLogin(AbstractHttpConfigurer::disable)
+  @Bean
+  public SecurityFilterChain securityFilterChain(
+      HttpSecurity http,
+      JwtTokenService jwtTokenService,
+      AccountStateChecker accountStateChecker,
+      CookieCsrfTokenRepository csrfTokenRepository,
+      JsonAuthenticationEntryPoint authenticationEntryPoint,
+      JsonAccessDeniedHandler accessDeniedHandler,
+      UrlBasedCorsConfigurationSource corsConfigurationSource) throws Exception {
 
-                // Chưa sử dụng HTTP Basic authentication
-                .httpBasic(AbstractHttpConfigurer::disable)
+    http
+        .authorizeHttpRequests(auth -> auth
 
-                // Tránh dùng endpoint logout mặc định
-                // của Spring Security
-                .logout(AbstractHttpConfigurer::disable)
+            .requestMatchers(
+                HttpMethod.POST,
+                "/auth/register")
+            .permitAll()
 
-                // Tạm thời trả 401 không có JSON body.
-                // Slice 3.7 sẽ xử lý error envelope.
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(
-                                (request, response, exception) -> response.setStatus(
-                                        HttpServletResponse.SC_UNAUTHORIZED)));
+            // Endpoint public hiện đã tồn tại
+            .requestMatchers(
+                HttpMethod.GET,
+                "/health")
+            .permitAll()
 
-        http.addFilterBefore(
-                new JwtAuthenticationFilter(
-                        jwtTokenService,
-                        accountStateChecker),
-                UsernamePasswordAuthenticationFilter.class);
+            // Mặc định: mọi endpoint khác cần xác thực
+            .anyRequest().authenticated())
 
-        return http.build();
-    }
+        .csrf(csrf -> csrf
+
+            // Nguồn expected token: csrf_token cookie
+            .csrfTokenRepository(csrfTokenRepository)
+
+            // Token client gửi phải nằm trong header
+            .csrfTokenRequestHandler(
+                new HeaderOnlyCsrfTokenRequestHandler())
+
+            // Giữ đúng SAFE_METHODS của NestJS cũ
+            .requireCsrfProtectionMatcher(
+                request -> !Set.of("GET", "HEAD", "OPTIONS")
+                    .contains(request.getMethod()))
+
+            // Chỉ bỏ qua CSRF trên các public POST đã biết
+            .ignoringRequestMatchers(
+                pathPattern(HttpMethod.POST, "/auth/register"),
+                pathPattern(HttpMethod.POST, "/auth/login"),
+                pathPattern(HttpMethod.POST, "/auth/refresh"),
+                pathPattern(HttpMethod.POST, "/auth/logout"),
+                pathPattern(HttpMethod.POST, "/words/lookup"),
+                pathPattern(HttpMethod.POST, "/words/lookup-batch")))
+
+        .cors(cors -> cors
+            .configurationSource(corsConfigurationSource))
+        // Lexi là REST API, không dùng trang login HTML
+        .formLogin(AbstractHttpConfigurer::disable)
+
+        // Chưa sử dụng HTTP Basic authentication
+        .httpBasic(AbstractHttpConfigurer::disable)
+
+        // Tránh dùng endpoint logout mặc định
+        // của Spring Security
+        .logout(AbstractHttpConfigurer::disable)
+
+        // Tạm thời trả 401 không có JSON body.
+        // Slice 3.7 sẽ xử lý error envelope.
+        .exceptionHandling(ex -> ex
+
+            .authenticationEntryPoint(
+                authenticationEntryPoint)
+
+            .accessDeniedHandler(
+                accessDeniedHandler));
+
+    http.addFilterBefore(
+        new JwtAuthenticationFilter(
+            jwtTokenService,
+            accountStateChecker,
+            authenticationEntryPoint),
+        UsernamePasswordAuthenticationFilter.class);
+
+    return http.build();
+  }
 }

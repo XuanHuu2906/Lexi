@@ -23,113 +23,125 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "users")
 public class User {
 
-        @Enumerated(EnumType.STRING)
-        @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-        @Column(name = "provider", nullable = false, columnDefinition = "\"AuthProvider\"")
-        private AuthProvider provider;
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @Column(name = "provider", nullable = false, columnDefinition = "\"AuthProvider\"")
+  private AuthProvider provider;
 
-        @Enumerated(EnumType.STRING)
-        @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-        @Column(name = "role", nullable = false, columnDefinition = "\"UserRole\"")
-        private UserRole role;
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @Column(name = "role", nullable = false, columnDefinition = "\"UserRole\"")
+  private UserRole role;
 
-        @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
-        private List<ReviewLog> reviewLogs = new ArrayList<>();
+  @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+  private List<ReviewLog> reviewLogs = new ArrayList<>();
 
-        @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
-        private List<Word> words = new ArrayList<>();
+  @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+  private List<Word> words = new ArrayList<>();
 
-        @Id
-        @Column(name = "id", nullable = false)
-        private String id;
+  @Id
+  @Column(name = "id", nullable = false)
+  private String id;
 
-        @Column(name = "email", nullable = false, unique = true)
-        private String email;
+  @Column(name = "email", nullable = false, unique = true)
+  private String email;
 
-        @Column(name = "\"passwordHash\"")
-        private String passwordHash;
+  @Column(name = "\"passwordHash\"")
+  private String passwordHash;
 
-        @Column(name = "\"emailVerified\"", nullable = false)
-        private boolean emailVerified;
+  @Column(name = "\"emailVerified\"", nullable = false)
+  private boolean emailVerified;
 
-        @Column(name = "\"failedLoginAttempts\"", nullable = false)
-        private int failedLoginAttempts;
+  @Column(name = "\"failedLoginAttempts\"", nullable = false)
+  private int failedLoginAttempts;
 
-        @Column(name = "\"lockedUntil\"")
-        private LocalDateTime lockedUntil;
+  @Column(name = "\"lockedUntil\"")
+  private LocalDateTime lockedUntil;
 
-        @Column(name = "\"disabledAt\"")
-        private LocalDateTime disabledAt;
+  @Column(name = "\"disabledAt\"")
+  private LocalDateTime disabledAt;
 
-        @Column(name = "\"disabledReason\"")
-        private String disabledReason;
+  @Column(name = "\"disabledReason\"")
+  private String disabledReason;
 
-        @Column(name = "\"lastActiveAt\"", nullable = false)
-        private LocalDateTime lastActiveAt;
+  @Column(name = "\"lastActiveAt\"", nullable = false)
+  private LocalDateTime lastActiveAt;
 
-        @Column(name = "\"createdAt\"", nullable = false)
-        private LocalDateTime createdAt;
+  @Column(name = "\"createdAt\"", nullable = false)
+  private LocalDateTime createdAt;
 
-        @Column(name = "\"updatedAt\"", nullable = false)
-        private LocalDateTime updatedAt;
+  @Column(name = "\"updatedAt\"", nullable = false)
+  private LocalDateTime updatedAt;
 
-        protected User() {
-        }
+  protected User() {
+  }
 
-        public User(
-                        String id,
-                        String email,
-                        String passwordHash,
-                        LocalDateTime now) {
+  public User(
+      String id,
+      String email,
+      String passwordHash,
+      LocalDateTime now) {
 
-                this.role = UserRole.LEARNER;
-                this.id = id;
-                this.email = email;
-                this.passwordHash = passwordHash;
-                this.provider = AuthProvider.LOCAL;
-                this.emailVerified = false;
-                this.failedLoginAttempts = 0;
+    this.role = UserRole.LEARNER;
+    this.id = id;
+    this.email = email;
+    this.passwordHash = passwordHash;
+    this.provider = AuthProvider.LOCAL;
+    this.emailVerified = false;
+    this.failedLoginAttempts = 0;
 
-                this.lastActiveAt = now;
-                this.createdAt = now;
-                this.updatedAt = now;
-        }
+    this.lastActiveAt = now;
+    this.createdAt = now;
+    this.updatedAt = now;
+  }
 
-        public List<ReviewLog> getReviewLogs() {
-                return reviewLogs;
-        }
+  public List<ReviewLog> getReviewLogs() {
+    return reviewLogs;
+  }
 
-        public List<Word> getWords() {
-                return words;
-        }
+  public List<Word> getWords() {
+    return words;
+  }
 
-        public String getId() {
-                return id;
-        }
+  public String getId() {
+    return id;
+  }
 
-        public String getEmail() {
-                return email;
-        }
+  public String getEmail() {
+    return email;
+  }
 
-        public UserRole getRole() {
-                return role;
-        }
+  public UserRole getRole() {
+    return role;
+  }
 
-        public void changeEmail(String email) {
+  public void changeEmail(String email) {
 
-                if (email == null || email.isBlank()) {
-                        throw new IllegalArgumentException(
-                                        "Email must not be blank");
-                }
+    if (email == null || email.isBlank()) {
+      throw new IllegalArgumentException(
+          "Email must not be blank");
+    }
 
-                this.email = email;
-        }
+    this.email = email;
+  }
 
-        public AuthProvider getProvider() {
-                return provider;
-        }
+  public AuthProvider getProvider() {
+    return provider;
+  }
 
-        public LocalDateTime getDisabledAt() {
-                return disabledAt;
-        }
+  public LocalDateTime getDisabledAt() {
+    return disabledAt;
+  }
+
+  public boolean isEmailVerified() {
+    return emailVerified;
+  }
+
+  public LocalDateTime getCreatedAt() {
+    return createdAt;
+  }
+
+  public LocalDateTime getUpdatedAt() {
+    return updatedAt;
+  }
 }
