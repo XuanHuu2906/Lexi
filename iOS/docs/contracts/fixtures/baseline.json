@@ -1,0 +1,275 @@
+{
+  "provenance": "Synthetic examples based on NestJS source at 87760f17f0e40ae87447bf6cda9e2609ae0642a5; NOT live API captures. No tokens or real user data.",
+  "cases": [
+    {
+      "name": "health_success",
+      "source": "backend/src/health/health.controller.ts",
+      "method": "GET",
+      "path": "/health",
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "status": "ok",
+          "database": "up",
+          "uptime": 42.5,
+          "timestamp": "2026-10-17T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "user_nullable_relations",
+      "source": "backend/src/users/users.service.ts",
+      "method": "GET",
+      "path": "/users/me",
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "id": "fixture-user-a",
+          "email": "learner-a@example.invalid",
+          "provider": "LOCAL",
+          "emailVerified": false,
+          "role": "LEARNER",
+          "createdAt": "2026-10-17T00:00:00.000Z",
+          "updatedAt": "2026-10-17T00:00:00.000Z",
+          "setting": null,
+          "streak": null
+        }
+      }
+    },
+    {
+      "name": "words_list_with_nullable_fields",
+      "source": "backend/src/words/words.service.ts + backend/prisma/schema.prisma",
+      "method": "GET",
+      "path": "/words",
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "items": [
+            {
+              "id": "fixture-word-a",
+              "userId": "fixture-user-a",
+              "term": "apple",
+              "meaning": "quả táo",
+              "phonetic": null,
+              "partOfSpeech": null,
+              "examples": [],
+              "synonyms": [],
+              "antonyms": [],
+              "topic": null,
+              "note": null,
+              "status": "NEW",
+              "quizzedInCycle": false,
+              "createdAt": "2026-10-17T00:00:00.000Z",
+              "updatedAt": "2026-10-17T00:00:00.000Z",
+              "srsData": {
+                "id": "fixture-srs-a",
+                "wordId": "fixture-word-a",
+                "interval": 1,
+                "easeFactor": 2.5,
+                "repetitions": 0,
+                "lastQuality": null,
+                "lastReviewedAt": null,
+                "nextReviewAt": "2026-10-17T00:00:00.000Z"
+              }
+            }
+          ],
+          "total": 1,
+          "page": 1,
+          "limit": 20
+        }
+      }
+    },
+    {
+      "name": "words_empty",
+      "source": "backend/src/words/words.service.ts",
+      "method": "GET",
+      "path": "/words",
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "items": [],
+          "total": 0,
+          "page": 1,
+          "limit": 20
+        }
+      }
+    },
+    {
+      "name": "review_due_empty",
+      "source": "backend/src/review/review.service.ts",
+      "method": "GET",
+      "path": "/review/due",
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "items": [],
+          "count": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "review_answer_first_good",
+      "source": "backend/src/review/review.service.ts + backend/src/review/sm2.ts",
+      "method": "POST",
+      "path": "/review/answer",
+      "status": 201,
+      "request": {
+        "wordId": "fixture-word-a",
+        "rating": "good"
+      },
+      "body": {
+        "success": true,
+        "data": {
+          "srsData": {
+            "id": "fixture-srs-a",
+            "wordId": "fixture-word-a",
+            "interval": 1,
+            "easeFactor": 2.5,
+            "repetitions": 1,
+            "lastQuality": 4,
+            "lastReviewedAt": "2026-10-17T00:00:00.000Z",
+            "nextReviewAt": "2026-10-18T00:00:00.000Z"
+          },
+          "status": "LEARNING",
+          "nextReviewAt": "2026-10-18T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "quiz_in_progress",
+      "source": "backend/src/review/quiz.service.ts",
+      "method": "GET",
+      "path": "/quiz/fixture-quiz-a",
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "quizId": "fixture-quiz-a",
+          "total": 4,
+          "score": 0,
+          "status": "IN_PROGRESS",
+          "questions": [
+            {
+              "index": 0,
+              "term": "apple",
+              "question": "Choose the meaning of apple",
+              "options": [
+                "quả táo",
+                "sách",
+                "ghế",
+                "bàn"
+              ],
+              "userAnswer": 0
+            },
+            {
+              "index": 1,
+              "term": "book",
+              "question": "Choose the meaning of book",
+              "options": [
+                "ghế",
+                "sách",
+                "bàn",
+                "quả táo"
+              ],
+              "userAnswer": null
+            },
+            {
+              "index": 2,
+              "term": "chair",
+              "question": "Choose the meaning of chair",
+              "options": [
+                "bàn",
+                "sách",
+                "ghế",
+                "quả táo"
+              ],
+              "userAnswer": null
+            },
+            {
+              "index": 3,
+              "term": "table",
+              "question": "Choose the meaning of table",
+              "options": [
+                "ghế",
+                "sách",
+                "quả táo",
+                "bàn"
+              ],
+              "userAnswer": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "auth_401",
+      "source": "backend/src/auth/guards/jwt-auth.guard.ts + backend/src/common/filters/all-exceptions.filter.ts",
+      "method": "GET",
+      "path": "/users/me",
+      "status": 401,
+      "body": {
+        "success": false,
+        "statusCode": 401,
+        "message": "Unauthorized",
+        "error": "UnauthorizedException",
+        "path": "/users/me",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      },
+      "provenance": "Actual exception filter component with synthetic exception; timestamp normalized. NOT HTTP capture."
+    },
+    {
+      "name": "csrf_403",
+      "source": "backend/src/auth/guards/csrf.guard.ts + backend/src/common/filters/all-exceptions.filter.ts",
+      "method": "POST",
+      "path": "/review/answer",
+      "status": 403,
+      "body": {
+        "success": false,
+        "statusCode": 403,
+        "message": "Invalid or missing CSRF token",
+        "error": "Forbidden",
+        "path": "/review/answer",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      },
+      "provenance": "Actual exception filter component with synthetic exception; timestamp normalized. NOT HTTP capture."
+    },
+    {
+      "name": "rate_limit_429",
+      "source": "@nestjs/throttler + backend/src/common/filters/all-exceptions.filter.ts; verify exact message at HTTP capture",
+      "method": "POST",
+      "path": "/words/lookup",
+      "status": 429,
+      "body": {
+        "success": false,
+        "statusCode": 429,
+        "message": "ThrottlerException: Too Many Requests",
+        "error": "InternalServerError",
+        "path": "/words/lookup",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      },
+      "provenance": "Actual exception filter component with synthetic exception; timestamp normalized. NOT HTTP capture."
+    },
+    {
+      "name": "server_500",
+      "source": "backend/src/common/filters/all-exceptions.filter.ts (generic Error)",
+      "method": "GET",
+      "path": "/words",
+      "status": 500,
+      "body": {
+        "success": false,
+        "statusCode": 500,
+        "message": "Internal server error",
+        "error": "Error",
+        "path": "/words",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      },
+      "provenance": "Actual exception filter component with synthetic exception; timestamp normalized. NOT HTTP capture."
+    }
+  ]
+}

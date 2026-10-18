@@ -1,0 +1,23 @@
+docs/*.local.json
+.build/
+xtool/
+.swiftpm/
+*.p8
+*.p12
+*.mobileprovision
+.env
+.env.*
+!.env.example
+.local/
+*.xcodeproj/
+*.xcworkspace/
+*.cer
+*.pem
+*.key
+*.log
+# Temporary upload files
+.tmp.driveupload/
+
+# Swift build artifacts
+.build/
+.swiftpm/
