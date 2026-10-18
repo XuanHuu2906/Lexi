@@ -10,6 +10,8 @@ import { UserRole } from '../../../generated/prisma/client';
 export interface AuthUser {
   userId: string;
   email: string;
+  /** Set only after JWT signature/expiry/account validation succeeds. */
+  authMechanism: 'cookie' | 'bearer';
   /** Populated by RolesGuard on role-protected routes (read fresh from DB). */
   role?: UserRole;
 }
