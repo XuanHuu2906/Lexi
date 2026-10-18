@@ -1,12 +1,12 @@
 # ADR-006 — Native authentication, rotation và lifecycle
 
-Ngày 18/10/2026. Quyết định đã triển khai và kiểm thử local; chưa triển khai staging/chưa có bằng chứng iPhone. ADR này cập nhật baseline ADR-002, không phải phê duyệt bảo mật độc lập.
+Ngày 18/10/2026. Quyết định đã triển khai, kiểm thử local và deploy staging; người dùng xác nhận login cùng tài khoản web, relaunch giữ phiên và logout/login lại trên iPhone. G3 đạt; xem [bằng chứng rollout](evidence/phase4-rollout-2026-10-18.md). ADR này cập nhật baseline ADR-002, không phải phê duyệt bảo mật độc lập.
 
 ## Transport và chính sách server
 
 Web giữ `/auth/*`, cookie paths `/` và `/api/auth`, SameSite=Lax, HttpOnly access/refresh, Secure production. Native dùng `/auth/mobile/{register,login,refresh,logout}` với JSON, không Set-Cookie, no-store cả success/error. Cả hai gọi cùng AuthService, cùng user/settings/streak và bcrypt. Password đăng ký native ≥8 ký tự và ≤72 byte UTF-8; login giữ tương thích password tài khoản web, tối đa 72 ký tự. Reset password chưa thuộc UI MVP và chưa thêm endpoint giả.
 
-Base URL native là `https://lexi-backend-tf32.onrender.com`, không `/api`. Render theo nhánh `main` (người dùng xác nhận); staging Swagger kiểm tra ngày 18/10 chưa có mobile routes. CORS chỉ là quy tắc của browser, không thay authentication/authorization. Native URLSession không cookie/cache, HTTPS và same-origin redirects.
+Base URL native là `https://lexi-backend-tf32.onrender.com`, không `/api`. Render theo nhánh `main` (người dùng xác nhận); staging Swagger khoảng 11:49 UTC ngày 18/10 đã có đủ bốn mobile routes. CORS chỉ là quy tắc của browser, không thay authentication/authorization. Native URLSession không cookie/cache, HTTPS và same-origin redirects.
 
 JWT extractor chọn cookie trước nếu cookie hiện diện, kể cả chuỗi rỗng/không hợp lệ. Chỉ sau khi verify chữ ký HS256 và trạng thái user trong DB mới ghi `authMechanism` vào AuthUser. CSRF miễn cho Bearer đã được chọn/xác thực; cookie luôn cần CSRF trên mutation. Không tin X-Client-Type hoặc header Authorization tự khai. Deleted/disabled/temporarily locked user không dùng được JWT còn hạn.
 
@@ -32,4 +32,4 @@ Cold start refresh rồi GET me; foreground kiểm tra tối đa mỗi 60 giây 
 
 ## Rủi ro và bằng chứng còn lại
 
-Tests dùng DB container PostgreSQL tách riêng, không staging DB. Backend HTTP/DB/web proxy và Swift concurrency tests được ghi ở [báo cáo Phase 4](ios-phase4-status.md). Cần deploy main, xác minh no-store/headers ở ingress, iPhone Keychain/cold-start/background screenshot, login cùng account web và disabled/logout thực. Chưa tích hợp crash/APM collector nên test redaction local không chứng minh cấu hình dịch vụ bên ngoài. Chưa tick exit gate G3.
+Tests dùng DB container PostgreSQL tách riêng, không staging DB. Backend HTTP/DB/web proxy và Swift concurrency tests được ghi ở [báo cáo Phase 4](ios-phase4-status.md). Đã deploy main, kiểm tra health/Swagger và no-store/không Set-Cookie trên các nhánh validation/unknown credential qua HTTPS; người dùng xác nhận iPhone login cùng account web, cold-start giữ phiên và logout/login lại. G3 đạt ở mức bằng chứng này. IOS-0434 còn phần kiểm thử mở rộng: disable trên thiết bị, web trước/sau và đổi mật khẩu (chưa có native flow); offline/expiry/background preview cũng chưa có xác nhận thiết bị. Chưa tích hợp crash/APM collector nên test redaction local không chứng minh cấu hình dịch vụ bên ngoài.

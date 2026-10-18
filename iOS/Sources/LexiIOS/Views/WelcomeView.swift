@@ -1,51 +1,45 @@
-#if canImport(SwiftUI)
+#if os(iOS)
 import SwiftUI
-
-private enum LexiColors {
-    static let grape = Color(red: 108/255.0, green: 75/255.0, blue: 245/255.0)
-    static let cloud = Color(red: 244/255.0, green: 242/255.0, blue: 251/255.0)
-    static let ink = Color(red: 27/255.0, green: 24/255.0, blue: 48/255.0)
-}
 
 struct WelcomeView: View {
     let container: AppContainer
     @State private var attempt = 0
+    @ScaledMetric(relativeTo: .largeTitle) private var markSize = 64
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 28) {
+            LexiPage {
+                VStack(spacing: LexiSpacing.xl) {
                     Image(systemName: "character.book.closed.fill")
-                        .font(.system(size: 64)).foregroundStyle(LexiColors.grape)
+                        .font(.system(size: markSize)).foregroundStyle(LexiColors.grape500)
                         .accessibilityHidden(true)
                     VStack(spacing: 8) {
-                        Text("Lexi").font(.largeTitle.bold())
+                        Text("Lexi").font(LexiTypography.hero).accessibilityAddTraits(.isHeader)
                         Text("Mỗi ngày một chút, tiếng Anh tiến xa.")
                             .font(.title3).multilineTextAlignment(.center)
                     }
-                    Group {
+                    LexiCard {
                         if let health = container.health {
                             healthStatus(health)
                         } else {
-                            ErrorView(title: "Chưa cấu hình kết nối", message: "Thiết lập URL HTTPS của Lexi API trong cấu hình bản build để kiểm tra kết nối.")
+                            ErrorState(title: "Chưa thể kết nối", message: "Bản cài đặt này chưa có cấu hình kết nối Lexi. Vui lòng liên hệ người cung cấp bản cài đặt.")
                         }
                     }
-                    .frame(maxWidth: .infinity).padding(20)
-                    .background(.white, in: RoundedRectangle(cornerRadius: 20))
                     if let session = container.session {
+                        if let api = container.api {
+                            NavigationLink("Tra từ không cần đăng nhập") { LookupView(api: api.words, session: session) }
+                                .buttonStyle(LexiButtonStyle(variant: .secondary))
+                        }
                         NavigationLink("Đăng nhập") { LoginView(model: session) }
-                            .buttonStyle(.borderedProminent).controlSize(.large)
+                            .buttonStyle(LexiButtonStyle(variant: .primary))
                         if let message = session.message {
                             Text(message).font(.callout).multilineTextAlignment(.center)
                         }
                     }
-                    Text("Bản phát triển").font(.footnote).foregroundStyle(.secondary)
+                    Text("Bản phát triển").font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
                 }
-                .padding(24).padding(.top, 36)
-                .frame(maxWidth: 560).frame(maxWidth: .infinity)
+                .padding(.top, LexiSpacing.xl)
             }
-            .background(LexiColors.cloud).foregroundStyle(LexiColors.ink)
-            .tint(LexiColors.grape)
             .task(id: attempt) { await container.health?.check() }
         }
     }
@@ -53,20 +47,21 @@ struct WelcomeView: View {
     @ViewBuilder private func healthStatus(_ model: HealthViewModel) -> some View {
         VStack(spacing: 16) {
             switch model.state {
-            case .idle, .loading: LaunchView()
+            case .idle, .loading: LoadingState(title: "Đang kiểm tra kết nối…")
             case .reachable:
-                Label("API reachable", systemImage: "checkmark.circle.fill")
-                    .font(.headline).foregroundStyle(.green)
-                Text("Kết nối Lexi và cơ sở dữ liệu hoạt động.").multilineTextAlignment(.center)
+                Label("Đã kết nối Lexi", systemImage: "checkmark.circle.fill")
+                    .font(LexiTypography.heading).foregroundStyle(LexiColors.success)
+                Text("Sẵn sàng cho hành trình học của bạn.").multilineTextAlignment(.center)
             case .degraded:
-                ErrorView(title: "Dịch vụ chưa sẵn sàng", message: "API đã phản hồi nhưng hệ thống chưa hoạt động bình thường.")
-            case .offline: OfflineView()
+                ErrorState(title: "Dịch vụ chưa sẵn sàng", message: "Lexi chưa thể phục vụ ngay lúc này. Vui lòng thử lại sau.")
+            case .offline:
+                ErrorState(title: "Không có kết nối mạng", message: "Kiểm tra Wi-Fi hoặc dữ liệu di động rồi thử lại.")
             case .timeout:
-                ErrorView(title: "Kết nối quá thời gian", message: "Máy chủ chưa phản hồi kịp. Hãy thử lại.")
+                ErrorState(title: "Kết nối quá thời gian", message: "Máy chủ chưa phản hồi kịp. Hãy thử lại.")
             case .rateLimited:
-                ErrorView(title: "Đã đạt giới hạn yêu cầu", message: "Vui lòng đợi trước khi thử lại.")
+                ErrorState(title: "Đã đạt giới hạn yêu cầu", message: "Vui lòng đợi trước khi thử lại.")
             case .failed:
-                ErrorView(title: "Không thể kết nối Lexi", message: "Không nhận được phản hồi hợp lệ. Vui lòng thử lại sau.")
+                ErrorState(title: "Không thể kết nối Lexi", message: "Không nhận được phản hồi hợp lệ. Vui lòng thử lại sau.")
             }
             if model.state != .loading {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -77,9 +72,7 @@ struct WelcomeView: View {
                             Text("Thử lại sau \(until.timeIntervalSince(context.date).rounded(.up).formatted(.number.precision(.fractionLength(0)))) giây.")
                                 .font(.footnote)
                         }
-                        Button("Kiểm tra lại") { attempt += 1 }
-                            .buttonStyle(.bordered).controlSize(.large)
-                            .disabled(waiting)
+                        LexiButton(title: "Kiểm tra lại", variant: .secondary, isDisabled: waiting) { attempt += 1 }
                     }
                 }
             }

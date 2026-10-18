@@ -1,6 +1,6 @@
 # Lexi iOS
 
-App native SwiftUI iOS 17+, SwiftPM và xtool. Thư mục `iOS/` (đúng chữ hoa) là source-of-truth. Phase 3 đã hoàn tất. Phase 4 đã có đăng nhập/đăng ký, Keychain và quản lý phiên, 52 Swift tests và build iOS pass; backend native cần deploy lên staging và kiểm thử iPhone trước khi đóng G3. Xem [trạng thái Phase 4](docs/ios-phase4-status.md).
+App native SwiftUI iOS 17+, SwiftPM và xtool. Thư mục `iOS/` (đúng chữ hoa) là source-of-truth. Phase 3 đã hoàn tất. **Phase 4 đạt G3 ngày 18/10/2026:** backend native đã deploy; người dùng xác nhận iPhone đăng nhập bằng tài khoản web, tắt hẳn/mở lại giữ phiên, logout rồi login lại. **Phase 5 đã triển khai theme, auth UI và shell 5 tab; 58 Swift tests / 7 suites và iOS build pass.** Còn QA thiết bị/Dynamic Type/VoiceOver/screenshot để đóng gate; xem [trạng thái Phase 5](docs/ios-phase5-status.md) và [design spec](docs/ios-design.md). Các kịch bản mở rộng IOS-0434 tiếp tục được ghi ở [trạng thái Phase 4](docs/ios-phase4-status.md).
 
 ## Chạy từ WSL
 
@@ -67,15 +67,17 @@ swift test
 xtool dev build
 ```
 
-AuthAPI đã nối `/auth/mobile/*` vào UI và SessionActor. Backend source có đủ bốn routes; staging Swagger ngày 18/10 chưa có, cần deploy `main` trước khi đăng nhập trên thiết bị. Refresh token lưu Keychain `WhenUnlockedThisDeviceOnly`, access chỉ ở memory; 401 refresh/retry một lần, offline giữ phiên để retry. Xem [ADR-006](docs/adr-006-native-auth.md) về replay, logout và giới hạn runtime.
+AuthAPI đã nối `/auth/mobile/*` vào UI và SessionActor. Staging ngày 18/10 khoảng 11:49 UTC đã xác minh đủ bốn routes, health/database up, validation/unknown credential/no-store/không Set-Cookie; xem [evidence rollout và iPhone](docs/evidence/phase4-rollout-2026-10-18.md). Refresh token lưu Keychain `WhenUnlockedThisDeviceOnly`, access chỉ ở memory; 401 refresh/retry một lần, offline giữ phiên để retry. Xem [ADR-006](docs/adr-006-native-auth.md) về replay, logout và giới hạn runtime.
 
 ## iPhone và kiểm tra thủ công
 
+**Bản Phase 5 ngày 18/10/2026 đã được cài lên iPhone 14 Plus** qua `xtool dev run --usb` với socket Windows: Installing và Verifying đều 100%. Chưa có xác nhận kiểm tra giao diện bản này; dùng checklist bên dưới và báo cáo Phase 5 để nghiệm thu.
+
 1. Dùng quy trình USB passthrough/pairing Phase 1, mở khóa iPhone, Trust máy và bật Developer Mode nếu thiết bị yêu cầu.
 2. Chạy `xtool dev` ở thư mục package; mở app Lexi trên iPhone. Signing có thể yêu cầu thao tác Apple ID của chính bạn; không đưa credential vào repo.
-3. Khi đã có HTTPS API: kiểm tra success, bật chế độ máy bay và tắt Wi-Fi → `Network unavailable`, bật lại mạng → bấm `Kiểm tra lại` → phục hồi.
+3. Khi đã có HTTPS API: kiểm tra `Đã kết nối Lexi`, bật chế độ máy bay và tắt Wi-Fi → `Không có kết nối mạng`, bật lại mạng → bấm `Kiểm tra lại` → phục hồi.
 4. Kiểm tra timeout trên endpoint thử nghiệm được kiểm soát, HTTP lỗi/JSON sai và database down; không báo reachable trong các trường hợp này.
-5. Sau khi backend native đã deploy: đăng nhập/đăng ký, force-quit rồi mở lại, mất mạng/khôi phục, logout/đổi account và cỡ chữ lớn/VoiceOver. Home xác nhận email từ `/users/me`; các màn học còn placeholder cho phase sau. Không ghi password/token hoặc PII vào evidence.
+5. Backend native đã deploy; khi kiểm thử lại: đăng nhập/đăng ký, force-quit rồi mở lại, mất mạng/khôi phục, logout/đổi account và cỡ chữ lớn/VoiceOver. Ba bước login cùng account web, relaunch giữ phiên và logout/login lại đã được người dùng xác nhận cho Phase 4; không mặc nhiên coi UI Phase 5 đã được xác nhận. Home/Settings dùng email từ `/users/me`; các màn học còn trạng thái đang chuẩn bị. Thực hiện [checklist Phase 5](docs/ios-phase5-status.md) để kiểm tra 5 tab, nested navigation, logout confirmation và accessibility. Không ghi password/token hoặc PII vào evidence.
 
 Build output ở terminal và `xtool/LexiIOS.app`; xem Info.plist đã merge trong bundle để xác nhận cấu hình. Có thể lưu output vào `.local/` (gitignored) để chẩn đoán; loại Apple ID/device ID/token trước khi chia sẻ. [Báo cáo Phase 2](docs/ios-phase2-status.md) phân biệt test/build với bằng chứng thiết bị.
 

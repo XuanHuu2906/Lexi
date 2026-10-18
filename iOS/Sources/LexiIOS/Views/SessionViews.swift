@@ -16,6 +16,8 @@ struct SessionRootView: View {
                     }
             } else { WelcomeView(container: container) }
         }
+        .accessibilityHidden(scenePhase != .active)
+        .allowsHitTesting(scenePhase == .active)
         .overlay {
             if scenePhase != .active {
                 ZStack {
@@ -30,30 +32,24 @@ struct SessionRootView: View {
     @ViewBuilder private func content(_ model: SessionViewModel) -> some View {
         switch model.state {
         case .launching:
-            ProgressView("Đang khôi phục phiên…")
+            LexiPage { LoadingState(title: "Đang khôi phục phiên…") }
         case .signedOut:
             WelcomeView(container: container)
         case .unavailable:
-            VStack(spacing: 24) {
-                Image(systemName: "wifi.exclamationmark").font(.largeTitle).accessibilityHidden(true)
-                Text("Chưa thể mở phiên").font(.title2.bold())
-                if let message = model.message { Text(message).multilineTextAlignment(.center) }
-                RetrySessionButton(model: model)
-                Button("Đăng xuất khỏi thiết bị", role: .destructive) { Task { await model.logout() } }
-                    .disabled(model.busy)
-            }.padding(24)
-        case .authenticated(let me):
-            NavigationStack {
-                VStack(spacing: 24) {
-                    Label("Đã đăng nhập", systemImage: "checkmark.shield.fill").font(.title2.bold())
-                    Text(me.email).textSelection(.enabled).privacySensitive()
-                    DashboardView()
-                    Button("Đăng xuất", role: .destructive) { Task { await model.logout() } }
-                        .buttonStyle(.bordered).disabled(model.busy)
+            LexiPage {
+                LexiCard {
+                    ErrorState(title: "Chưa thể mở phiên", message: model.message ?? "Vui lòng thử lại.")
+                    RetrySessionButton(model: model)
+                    LexiButton(title: "Đăng xuất khỏi thiết bị", variant: .destructive, isLoading: model.busy) {
+                        Task { await model.logout() }
+                    }
                 }
-                .padding(24).navigationTitle("Lexi")
             }
-            .privacySensitive()
+        case .authenticated(let me):
+            if let api = container.api {
+                MainTabView(model: model, me: me, navigation: model.navigation, api: api)
+                    .id(model.navigation.generation)
+            }
         }
     }
 }
@@ -67,44 +63,49 @@ struct LoginView: View {
     private enum Field { case email, password }
 
     var body: some View {
-        Form {
-            Section {
-                TextField("Email", text: $email)
-                    .keyboardType(.emailAddress).textContentType(.username)
-                    .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    .focused($focus, equals: .email).submitLabel(.next)
-                    .onSubmit { focus = .password }
-                SecureField("Mật khẩu", text: $password)
-                    .textContentType(registering ? .newPassword : .password)
-                    .focused($focus, equals: .password).submitLabel(.go)
-                    .onSubmit { submit() }
+        LexiPage {
+            Text(registering ? "Bắt đầu hành trình của bạn." : "Chào mừng bạn trở lại.")
+                .font(LexiTypography.title).accessibilityAddTraits(.isHeader)
+            LexiCard {
+                LexiInput(title: "Email") {
+                    TextField("Email", text: $email)
+                        .keyboardType(.emailAddress).textContentType(.username)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .focused($focus, equals: .email).submitLabel(.next)
+                        .onSubmit { focus = .password }
+                }
+                LexiInput(title: "Mật khẩu") {
+                    SecureField("Mật khẩu", text: $password)
+                        .textContentType(registering ? .newPassword : .password)
+                        .focused($focus, equals: .password).submitLabel(.go)
+                        .onSubmit { submit() }
+                }
                 if registering {
-                    Text("Ít nhất 8 ký tự; tối đa 72 byte UTF-8.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Ít nhất 8 ký tự; tối đa 72 byte UTF-8.")
+                        .font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
                 }
             }
             .disabled(model.busy)
-            Section {
+            VStack(spacing: LexiSpacing.lg) {
                 if let message = model.message {
-                    Text(message).foregroundStyle(.secondary).accessibilityIdentifier("auth-feedback")
+                    ErrorState(title: "Chưa thể tiếp tục", message: message)
+                        .accessibilityIdentifier("auth-feedback")
                 }
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let waiting = model.retryAfter.map { $0 > context.date } ?? false
-                    Button(action: submit) {
-                        HStack {
-                            Text(registering ? "Tạo tài khoản" : "Đăng nhập")
-                            if model.busy { Spacer(); ProgressView() }
-                        }
-                    }
-                    .disabled(model.busy || email.isEmpty || password.isEmpty || waiting)
-                    if waiting { Text("Vui lòng chờ trước khi thử lại.").font(.footnote) }
+                    LexiButton(title: registering ? "Tạo tài khoản" : "Đăng nhập", isLoading: model.busy,
+                               isDisabled: email.isEmpty || password.isEmpty || waiting, action: submit)
+                    if waiting { Text("Vui lòng chờ trước khi thử lại.").font(LexiTypography.caption) }
                 }
-                Button(registering ? "Đã có tài khoản? Đăng nhập" : "Chưa có tài khoản? Đăng ký") {
+                LexiButton(title: registering ? "Đã có tài khoản? Đăng nhập" : "Chưa có tài khoản? Đăng ký",
+                           variant: .secondary, isDisabled: model.busy) {
                     registering.toggle(); password = ""
-                }.disabled(model.busy)
+                    model.clearFeedback()
+                    focus = .email
+                }
             }
-            Section {
-                Text("Dùng cùng email và mật khẩu với Lexi trên web.").font(.footnote)
-            }
+            Text("Dùng cùng email và mật khẩu với Lexi trên web.")
+                .font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
         }
         .navigationTitle(registering ? "Đăng ký" : "Đăng nhập")
         .privacySensitive()
@@ -115,8 +116,10 @@ struct LoginView: View {
         guard !model.busy else { return }
         focus = nil
         let submittedPassword = password
+        let submittedEmail = email
+        let isRegistration = registering
         password = ""
-        Task { await model.signIn(email: email, password: submittedPassword, register: registering) }
+        Task { await model.signIn(email: submittedEmail, password: submittedPassword, register: isRegistration) }
     }
 }
 
@@ -124,9 +127,10 @@ private struct RetrySessionButton: View {
     let model: SessionViewModel
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            Button("Thử lại") { Task { await model.restore(force: true) } }
-                .buttonStyle(.borderedProminent)
-                .disabled(model.busy || (model.retryAfter.map { $0 > context.date } ?? false))
+            LexiButton(title: "Thử lại", isLoading: model.busy,
+                       isDisabled: model.retryAfter.map { $0 > context.date } ?? false) {
+                Task { await model.restore(force: true) }
+            }
         }
     }
 }

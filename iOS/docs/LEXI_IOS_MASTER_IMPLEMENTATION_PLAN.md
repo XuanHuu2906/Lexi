@@ -532,7 +532,7 @@ struct LexiIOSApp: App {
 
 ## 4.A. Vấn đề được chứng minh từ repo
 
-**Hiện trạng:**
+**Baseline trước Phase 4 (lịch sử; trạng thái đã triển khai nằm ở 4.C):**
 
 1. `POST /auth/login` trả `{user,csrfToken}`; actual tokens được đặt trong cookies `httpOnly`.
 2. Access JWT được đọc từ cookie trước, Bearer fallback nếu cookie vắng mặt.
@@ -542,7 +542,7 @@ struct LexiIOSApp: App {
 
 Vì vậy **không** nên: hardcode `Set-Cookie`, dùng `WKWebView` login như mẹo vặt, tắt CSRF global, hoặc thêm JWT token vào JSON response của web login một cách vô điều kiện.
 
-## 4.B. Đề xuất native REST contract (mới, cần implement và review)
+## 4.B. Native REST contract (đã triển khai; account deletion ngoài phạm vi)
 
 | Method | Endpoint đề xuất | Request | Response data đề xuất | Auth |
 |---|---|---|---|---|
@@ -553,7 +553,7 @@ Vì vậy **không** nên: hardcode `Set-Cookie`, dùng `WKWebView` login như m
 | `GET` | `/users/me` | Bearer `Authorization` | `ApiMe` hiện tại | Protected |
 | `DELETE` | `/users/me` **nếu bổ sung** | authenticated + explicit confirmation | account deletion status | Protected, review semantics |
 
-**Chú ý:** các endpoint `mobile/*` ở trên là **API đề xuất, CHƯA CÓ trong Lexi**. Response chung phải tiếp tục là `{success:true,data:...}`, trừ khi ADR chấp thuận thay đổi có version. Native có thể dùng kiến trúc cookie isolation khác, nhưng đề xuất hiện tại là REST bearer/native session rõ ràng.
+**Cập nhật 18/10/2026:** bốn endpoint `mobile/*` đã triển khai qua PR #12 và xác minh có trên staging. Response chung giữ `{success:true,data:...}`; native dùng Bearer và JSON token, web giữ cookie. `DELETE /users/me` vẫn là đề xuất ngoài phạm vi Phase 4. Chi tiết input/logout/replay theo [contract hiện tại](contracts/mobile-api.md) và [ADR-006](adr-006-native-auth.md).
 
 ### Thiết kế session bắt buộc
 
@@ -577,7 +577,7 @@ Authenticated URLSession request
 
 ## 4.C. Backend tasks
 
-**Cập nhật 18/10/2026:** [Implementation/tests local](ios-phase4-status.md) và [ADR-006](adr-006-native-auth.md) đã có. Checklist bên dưới phản ánh source/tests local, không thay thế iPhone/staging exit gate. IOS-0418 **N/A**: không thêm device family/label hay migration. IOS-0434 và G3 còn mở; Render theo `main`, staging chưa có mobile routes.
+**Cập nhật 18/10/2026 — G3 đạt:** backend PR #12 đã merge/deploy từ `main`; probe staging xác nhận health/database up, đủ bốn mobile routes và headers/validation. Tests local pass: 65 backend + 12 PostgreSQL/Next + 52 Swift; Nest/xtool build pass. Người dùng xác nhận iPhone đăng nhập bằng tài khoản web, tắt hẳn/mở lại vẫn còn phiên, logout rồi login lại. Xem [báo cáo](ios-phase4-status.md) và [evidence](evidence/phase4-rollout-2026-10-18.md). IOS-0418 **N/A**: không thêm device family/label hay migration. IOS-0434 giữ mở cho phần kiểm thử mở rộng chưa có bằng chứng; không ghi 34/34 hoàn tất.
 
 - [x] **IOS-0401** Tạo ADR native auth, threat model (token theft, replay, stolen device, app reinstall, csrf downgrade).
 - [x] **IOS-0402** Viết DTO với validation/throttle cho mobile register/login/refresh/logout; giới hạn input và response.
@@ -617,6 +617,8 @@ Authenticated URLSession request
 - [x] **IOS-0433** Unit test SessionActor với clock/test transport: thành công, token expired, refresh concurrent, 401 after retry, logout, Keychain write failure.
 - [ ] **IOS-0434** Test end-to-end trên iPhone thật, cùng account đăng nhập web trước/sau, đổi mật khẩu/disable/logout scenarios.
 
+  **Đã xác nhận trên iPhone bởi người dùng:** cài app, login bằng tài khoản web, force-quit/relaunch giữ phiên, logout rồi login lại. **Còn thiếu trong mô tả gốc:** regression web trước/sau, disable trên thiết bị và đổi mật khẩu (chưa có native flow theo ADR-006). Phần login/restore phục vụ G3 đã đạt; checkbox này không đồng nghĩa mọi kịch bản đã được thực hiện.
+
 ## 4.E. Bảng test bảo mật bắt buộc
 
 | ID | Tình huống | Kỳ vọng |
@@ -637,11 +639,15 @@ Authenticated URLSession request
 **Deliverables:** Native auth backend endpoints, Swift Keychain/SessionActor, test suite web+native.  
 **Exit gate G3:** 100% AUTH-01…AUTH-12 pass trên automated/integration test phù hợp; iPhone thật đăng nhập/khôi phục phiên và cùng tài khoản với web.
 
+**Kết quả G3: ĐẠT ngày 18/10/2026.** Ma trận bằng chứng automated/integration và xác nhận thiết bị nằm trong [báo cáo Phase 4](ios-phase4-status.md). Có thể chuyển sang Phase 5; phần kiểm thử mở rộng IOS-0434 tiếp tục được theo dõi, không được coi là đã pass trên thiết bị.
+
 ---
 
 # PHASE 5 — LEXI NATIVE DESIGN SYSTEM, NAVIGATION, APP SHELL
 
 **Mục tiêu:** Xây visual identity Lexi từ web nhưng áp dụng interaction chuẩn iOS. Giao diện native, không cố sao chép sidebar web lên iPhone.
+
+> **Cập nhật 18/10/2026:** Đã triển khai theme/components, auth UI và shell 5 tab; **58 Swift tests / 7 suites và iOS build pass**. Hoàn tất phần triển khai của 14/18 task, còn QA thiết bị cho safe area/kích cỡ, VoiceOver/Dynamic Type và screenshot comparison. **Chưa đóng exit gate Phase 5.** Xem [design spec](ios-design.md) và [trạng thái/bằng chứng/checklist](ios-phase5-status.md).
 
 ## 5.A. Design tokens (được đối chiếu từ `frontend/src/app/globals.css`)
 
@@ -660,24 +666,24 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 
 ## 5.B. Giao diện và navigation
 
-- [ ] **IOS-0501** Trích palette, iconography, spacing, radius, typography từ CSS/frontend hiện tại; tạo design spec trong `docs/ios-design.md`.
-- [ ] **IOS-0502** Implement `LexiColors`, `LexiSpacing`, `LexiTypography`, `LexiRadii`, semantic colors (success/warning/error).
-- [ ] **IOS-0503** Dùng Dynamic Type và system text styles; không hardcode kích thước mọi font như web.
-- [ ] **IOS-0504** Tạo button variants `PrimaryButton`, `SecondaryButton`, destructive button, loading/disabled states.
-- [ ] **IOS-0505** Tạo reusable `LexiCard`, `EmptyState`, `ErrorState`, `LoadingState`, `BadgeChip`, `ProgressBar`, `StreakBadge`.
-- [ ] **IOS-0506** Tạo input components phù hợp iOS: focus, keyboard type, secure input, keyboard safe area.
-- [ ] **IOS-0507** Root flow: splash/session restoring → Auth flow hoặc `MainTabView`.
-- [ ] **IOS-0508** Main tabs đề xuất: **Home**, **Vocabulary**, **Review**, **Learn/Tutor**, **Settings**; tách quiz/word detail thành nested navigation.
-- [ ] **IOS-0509** `NavigationStack` với route enum; deep-link path schema nếu future cần notifications.
-- [ ] **IOS-0510** Empty/error/loading/skeleton cho tất cả tab; thống nhất global overlay/toast vừa phải.
+- [x] **IOS-0501** Trích palette, iconography, spacing, radius, typography từ CSS/frontend hiện tại; tạo design spec trong `docs/ios-design.md`.
+- [x] **IOS-0502** Implement `LexiColors`, `LexiSpacing`, `LexiTypography`, `LexiRadii`, semantic colors (success/warning/error).
+- [x] **IOS-0503** Dùng Dynamic Type và system text styles; không hardcode kích thước mọi font như web.
+- [x] **IOS-0504** Tạo button variants `PrimaryButton`, `SecondaryButton`, destructive button, loading/disabled states. Dùng `LexiButton` với `variant` tương ứng.
+- [x] **IOS-0505** Tạo reusable `LexiCard`, `EmptyState`, `ErrorState`, `LoadingState`, `BadgeChip`, `ProgressBar`, `StreakBadge`.
+- [x] **IOS-0506** Tạo input components phù hợp iOS: focus, keyboard type, secure input, keyboard safe area.
+- [x] **IOS-0507** Root flow: splash/session restoring → Auth flow hoặc `MainTabView`.
+- [x] **IOS-0508** Main tabs đề xuất: **Home**, **Vocabulary**, **Review**, **Learn/Tutor**, **Settings**; tách quiz/word detail thành nested navigation.
+- [x] **IOS-0509** `NavigationStack` với route enum; deep-link path schema nếu future cần notifications.
+- [x] **IOS-0510** Empty/error/loading/skeleton cho tất cả tab; thống nhất global overlay/toast vừa phải. Shared states có sẵn; shell feature chưa fetch nên chỉ hiển thị đang chuẩn bị, không giả loading/error; feedback inline ở auth/health.
 - [ ] **IOS-0511** Hỗ trợ safe areas, Dynamic Island/notch, home indicator, small/large iPhones, orientation policy.
-- [ ] **IOS-0512** Dark mode policy: hỗ trợ đúng semantic màu hoặc **khóa light mode có chủ ý** khi MVP; không để giao diện vỡ khi system dark.
+- [x] **IOS-0512** Dark mode policy: hỗ trợ đúng semantic màu hoặc **khóa light mode có chủ ý** khi MVP; không để giao diện vỡ khi system dark.
 - [ ] **IOS-0513** VoiceOver accessible labels/hints, đủ hit target, content order, reduce motion.
 - [ ] **IOS-0514** Review UI comparison với screenshots web nhưng ưu tiên Apple HIG cho navigation, swipe, sheet và alert.
-- [ ] **IOS-0515** Loading view không re-fetch không cần thiết; state ownership rõ khi đổi tab.
-- [ ] **IOS-0516** Account switch/logout xóa mọi personal view data cache và reset navigation.
+- [x] **IOS-0515** Loading view không re-fetch không cần thiết; state ownership rõ khi đổi tab.
+- [x] **IOS-0516** Account switch/logout xóa mọi personal view data cache và reset navigation.
 - [ ] **IOS-0517** Unit/snapshot test cơ bản nếu tooling hỗ trợ; manual screenshot trên iPhone thật tối thiểu 2 kích cỡ thiết bị hoặc simulator macOS CI.
-- [ ] **IOS-0518** Ghi thay đổi design khác web vào docs, không sửa CSS web để ép giống native.
+- [x] **IOS-0518** Ghi thay đổi design khác web vào docs, không sửa CSS web để ép giống native.
 
 **Deliverables:** SwiftUI theme, reusable components, `NavigationStack`, `TabView`, screens skeleton.  
 **Exit gate:** Không có hardcoded mock data khi vào luồng auth; navigation không lạc flow khi 401; các màn chính hoạt động với Dynamic Type/VoiceOver tối thiểu.
