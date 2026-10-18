@@ -1,8 +1,25 @@
-DROP TABLE IF EXISTS users CASCADE;
+-- CLEANUP TEST TABLES
+-- Chỉ sử dụng trong PostgreSQL Testcontainers.
+
+DROP TABLE IF EXISTS
+    refresh_tokens,
+    review_logs,
+    srs_data,
+    words,
+    streaks,
+    settings,
+    notifications,
+    users
+CASCADE;
+
+-- CLEANUP POSTGRESQL ENUM TYPES
+
+DROP TYPE IF EXISTS "NotificationType" CASCADE;
+DROP TYPE IF EXISTS "WordStatus" CASCADE;
+DROP TYPE IF EXISTS "TtsVoice" CASCADE;
+DROP TYPE IF EXISTS "CefrLevel" CASCADE;
 DROP TYPE IF EXISTS "UserRole" CASCADE;
 DROP TYPE IF EXISTS "AuthProvider" CASCADE;
-DROP TABLE IF EXISTS notifications CASCADE;
-DROP TYPE IF EXISTS "NotificationType" CASCADE;
 
 CREATE TYPE "AuthProvider"
     AS ENUM ('LOCAL', 'GOOGLE');

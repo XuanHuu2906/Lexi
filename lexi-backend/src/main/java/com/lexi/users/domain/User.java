@@ -144,4 +144,42 @@ public class User {
   public LocalDateTime getUpdatedAt() {
     return updatedAt;
   }
+
+  public String getPasswordHash() {
+    return passwordHash;
+  }
+
+  public int getFailedLoginAttempts() {
+    return failedLoginAttempts;
+  }
+
+  public LocalDateTime getLockedUntil() {
+    return lockedUntil;
+  }
+
+  public boolean isTemporarilyLocked(LocalDateTime now) {
+    return lockedUntil != null
+        && lockedUntil.isAfter(now);
+  }
+
+  public void recordFailedLogin(LocalDateTime now) {
+
+    int attempts = failedLoginAttempts + 1;
+
+    if (attempts >= 5) {
+      failedLoginAttempts = 0;
+      lockedUntil = now.plusMinutes(15);
+    } else {
+      failedLoginAttempts = attempts;
+    }
+
+    updatedAt = now;
+  }
+
+  public void recordSuccessfulLogin(LocalDateTime now) {
+    failedLoginAttempts = 0;
+    lockedUntil = null;
+    lastActiveAt = now;
+    updatedAt = now;
+  }
 }

@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.lexi.security.auth.EmailAlreadyRegisteredException;
-
+import com.lexi.security.auth.InvalidCredentialsException;
+import com.lexi.security.auth.LoginForbiddenException;
 import org.springframework.security.access.AccessDeniedException;
 import java.time.Clock;
 import java.time.Instant;
@@ -133,6 +134,38 @@ public class GlobalExceptionHandler {
             409,
             exception.getMessage(),
             "Conflict",
+            request.getRequestURI(),
+            Instant.now(clock)));
+  }
+
+  @ExceptionHandler(InvalidCredentialsException.class)
+  public ResponseEntity<ApiErrorResponse> handleInvalidCredentials(
+      InvalidCredentialsException exception,
+      HttpServletRequest request) {
+
+    return ResponseEntity
+        .status(HttpStatus.UNAUTHORIZED)
+        .body(new ApiErrorResponse(
+            false,
+            401,
+            exception.getMessage(),
+            "Unauthorized",
+            request.getRequestURI(),
+            Instant.now(clock)));
+  }
+
+  @ExceptionHandler(LoginForbiddenException.class)
+  public ResponseEntity<ApiErrorResponse> handleLoginForbidden(
+      LoginForbiddenException exception,
+      HttpServletRequest request) {
+
+    return ResponseEntity
+        .status(HttpStatus.FORBIDDEN)
+        .body(new ApiErrorResponse(
+            false,
+            403,
+            exception.getMessage(),
+            "Forbidden",
             request.getRequestURI(),
             Instant.now(clock)));
   }
