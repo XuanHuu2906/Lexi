@@ -1,0 +1,4 @@
+version: 1
+bundleID: com.xuanhuu.lexi.dev
+iconPath: Resources/AppIcon.png
+infoPath: Resources/Info.plist

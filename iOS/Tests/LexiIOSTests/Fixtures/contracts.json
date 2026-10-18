@@ -1,0 +1,1254 @@
+{
+  "provenance": "Synthetic source-based fixtures; not live captures. Regenerate with scripts/generate-contract-fixtures.py.",
+  "cases": [
+    {
+      "name": "health_success",
+      "source": "backend/src/health/health.controller.ts",
+      "method": "GET",
+      "path": "/health",
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "status": "ok",
+          "database": "up",
+          "uptime": 42.5,
+          "timestamp": "2026-10-17T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "user_nullable_relations",
+      "source": "backend/src/users/users.service.ts",
+      "method": "GET",
+      "path": "/users/me",
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "id": "fixture-user-a",
+          "email": "learner-a@example.invalid",
+          "provider": "LOCAL",
+          "emailVerified": false,
+          "role": "LEARNER",
+          "createdAt": "2026-10-17T00:00:00.000Z",
+          "updatedAt": "2026-10-17T00:00:00.000Z",
+          "setting": null,
+          "streak": null
+        }
+      }
+    },
+    {
+      "name": "words_list_with_nullable_fields",
+      "source": "backend/src/words/words.service.ts + backend/prisma/schema.prisma",
+      "method": "GET",
+      "path": "/words",
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "items": [
+            {
+              "id": "fixture-word-a",
+              "userId": "fixture-user-a",
+              "term": "apple",
+              "meaning": "quả táo",
+              "phonetic": null,
+              "partOfSpeech": null,
+              "examples": [],
+              "synonyms": [],
+              "antonyms": [],
+              "topic": null,
+              "note": null,
+              "status": "NEW",
+              "quizzedInCycle": false,
+              "createdAt": "2026-10-17T00:00:00.000Z",
+              "updatedAt": "2026-10-17T00:00:00.000Z",
+              "srsData": {
+                "id": "fixture-srs-a",
+                "wordId": "fixture-word-a",
+                "interval": 1,
+                "easeFactor": 2.5,
+                "repetitions": 0,
+                "lastQuality": null,
+                "lastReviewedAt": null,
+                "nextReviewAt": "2026-10-17T00:00:00.000Z"
+              }
+            }
+          ],
+          "total": 1,
+          "page": 1,
+          "limit": 20
+        }
+      }
+    },
+    {
+      "name": "words_empty",
+      "source": "backend/src/words/words.service.ts",
+      "method": "GET",
+      "path": "/words",
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "items": [],
+          "total": 0,
+          "page": 1,
+          "limit": 20
+        }
+      }
+    },
+    {
+      "name": "review_due_empty",
+      "source": "backend/src/review/review.service.ts",
+      "method": "GET",
+      "path": "/review/due",
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "items": [],
+          "count": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "review_answer_first_good",
+      "source": "backend/src/review/review.service.ts + backend/src/review/sm2.ts",
+      "method": "POST",
+      "path": "/review/answer",
+      "status": 201,
+      "request": {
+        "wordId": "fixture-word-a",
+        "rating": "good"
+      },
+      "body": {
+        "success": true,
+        "data": {
+          "srsData": {
+            "id": "fixture-srs-a",
+            "wordId": "fixture-word-a",
+            "interval": 1,
+            "easeFactor": 2.5,
+            "repetitions": 1,
+            "lastQuality": 4,
+            "lastReviewedAt": "2026-10-17T00:00:00.000Z",
+            "nextReviewAt": "2026-10-18T00:00:00.000Z"
+          },
+          "status": "LEARNING",
+          "nextReviewAt": "2026-10-18T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "quiz_in_progress",
+      "source": "backend/src/review/quiz.service.ts",
+      "method": "GET",
+      "path": "/quiz/fixture-quiz-a",
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "quizId": "fixture-quiz-a",
+          "total": 4,
+          "score": 0,
+          "status": "IN_PROGRESS",
+          "questions": [
+            {
+              "index": 0,
+              "term": "apple",
+              "question": "Choose the meaning of apple",
+              "options": [
+                "quả táo",
+                "sách",
+                "ghế",
+                "bàn"
+              ],
+              "userAnswer": 0
+            },
+            {
+              "index": 1,
+              "term": "book",
+              "question": "Choose the meaning of book",
+              "options": [
+                "ghế",
+                "sách",
+                "bàn",
+                "quả táo"
+              ],
+              "userAnswer": null
+            },
+            {
+              "index": 2,
+              "term": "chair",
+              "question": "Choose the meaning of chair",
+              "options": [
+                "bàn",
+                "sách",
+                "ghế",
+                "quả táo"
+              ],
+              "userAnswer": null
+            },
+            {
+              "index": 3,
+              "term": "table",
+              "question": "Choose the meaning of table",
+              "options": [
+                "ghế",
+                "sách",
+                "quả táo",
+                "bàn"
+              ],
+              "userAnswer": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "auth_401",
+      "source": "backend/src/auth/guards/jwt-auth.guard.ts + backend/src/common/filters/all-exceptions.filter.ts",
+      "method": "GET",
+      "path": "/users/me",
+      "status": 401,
+      "body": {
+        "success": false,
+        "statusCode": 401,
+        "message": "Unauthorized",
+        "error": "UnauthorizedException",
+        "path": "/users/me",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      },
+      "provenance": "Actual exception filter component with synthetic exception; timestamp normalized. NOT HTTP capture."
+    },
+    {
+      "name": "csrf_403",
+      "source": "backend/src/auth/guards/csrf.guard.ts + backend/src/common/filters/all-exceptions.filter.ts",
+      "method": "POST",
+      "path": "/review/answer",
+      "status": 403,
+      "body": {
+        "success": false,
+        "statusCode": 403,
+        "message": "Invalid or missing CSRF token",
+        "error": "Forbidden",
+        "path": "/review/answer",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      },
+      "provenance": "Actual exception filter component with synthetic exception; timestamp normalized. NOT HTTP capture."
+    },
+    {
+      "name": "rate_limit_429",
+      "source": "@nestjs/throttler + backend/src/common/filters/all-exceptions.filter.ts; verify exact message at HTTP capture",
+      "method": "POST",
+      "path": "/words/lookup",
+      "status": 429,
+      "body": {
+        "success": false,
+        "statusCode": 429,
+        "message": "ThrottlerException: Too Many Requests",
+        "error": "InternalServerError",
+        "path": "/words/lookup",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      },
+      "provenance": "Actual exception filter component with synthetic exception; timestamp normalized. NOT HTTP capture."
+    },
+    {
+      "name": "server_500",
+      "source": "backend/src/common/filters/all-exceptions.filter.ts (generic Error)",
+      "method": "GET",
+      "path": "/words",
+      "status": 500,
+      "body": {
+        "success": false,
+        "statusCode": 500,
+        "message": "Internal server error",
+        "error": "Error",
+        "path": "/words",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      },
+      "provenance": "Actual exception filter component with synthetic exception; timestamp normalized. NOT HTTP capture."
+    },
+    {
+      "name": "word_created",
+      "path": "/words",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/words/words.service.ts#create",
+      "body": {
+        "success": true,
+        "data": {
+          "id": "fixture-word-a",
+          "userId": "fixture-user-a",
+          "term": "apple",
+          "meaning": "quả táo",
+          "phonetic": null,
+          "partOfSpeech": null,
+          "examples": [],
+          "synonyms": [],
+          "antonyms": [],
+          "topic": null,
+          "note": null,
+          "status": "NEW",
+          "quizzedInCycle": false,
+          "createdAt": "2026-10-17T00:00:00.000Z",
+          "updatedAt": "2026-10-17T00:00:00.000Z",
+          "srsData": {
+            "id": "fixture-srs-a",
+            "wordId": "fixture-word-a",
+            "interval": 1,
+            "easeFactor": 2.5,
+            "repetitions": 0,
+            "lastQuality": null,
+            "lastReviewedAt": null,
+            "nextReviewAt": "2026-10-17T00:00:00.000Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "word_deleted",
+      "path": "/words/fixture-word-a",
+      "method": "DELETE",
+      "status": 200,
+      "source": "backend/src/words/words.service.ts#remove",
+      "body": {
+        "success": true,
+        "data": {
+          "deleted": true
+        }
+      }
+    },
+    {
+      "name": "review_due",
+      "path": "/review/due",
+      "method": "GET",
+      "status": 200,
+      "source": "backend/src/review/review.service.ts#due",
+      "body": {
+        "success": true,
+        "data": {
+          "items": [
+            {
+              "id": "fixture-word-a",
+              "userId": "fixture-user-a",
+              "term": "apple",
+              "meaning": "quả táo",
+              "phonetic": null,
+              "partOfSpeech": null,
+              "examples": [],
+              "synonyms": [],
+              "antonyms": [],
+              "topic": null,
+              "note": null,
+              "status": "NEW",
+              "quizzedInCycle": false,
+              "createdAt": "2026-10-17T00:00:00.000Z",
+              "updatedAt": "2026-10-17T00:00:00.000Z",
+              "srsData": {
+                "id": "fixture-srs-a",
+                "wordId": "fixture-word-a",
+                "interval": 1,
+                "easeFactor": 2.5,
+                "repetitions": 0,
+                "lastQuality": null,
+                "lastReviewedAt": null,
+                "nextReviewAt": "2026-10-17T00:00:00.000Z"
+              }
+            }
+          ],
+          "count": 1,
+          "total": 1
+        }
+      }
+    },
+    {
+      "name": "flashcard_guess",
+      "path": "/review/flashcards",
+      "method": "GET",
+      "status": 200,
+      "source": "backend/src/review/review.service.ts#flashcards",
+      "body": {
+        "success": true,
+        "data": {
+          "mode": "guess",
+          "scope": "due",
+          "count": 1,
+          "cards": [
+            {
+              "wordId": "fixture-word-a",
+              "term": "apple",
+              "meaning": "quả táo",
+              "phonetic": null,
+              "examples": [],
+              "options": [
+                "quả táo",
+                "sách",
+                "ghế",
+                "bàn"
+              ],
+              "answerIndex": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "flashcard_listen",
+      "path": "/review/flashcards",
+      "method": "GET",
+      "status": 200,
+      "source": "backend/src/review/review.service.ts#flashcards",
+      "body": {
+        "success": true,
+        "data": {
+          "mode": "listen",
+          "scope": "due",
+          "count": 1,
+          "cards": [
+            {
+              "wordId": "fixture-word-a",
+              "term": "apple",
+              "meaning": "quả táo",
+              "phonetic": null,
+              "examples": [],
+              "options": [
+                "quả táo",
+                "sách",
+                "ghế",
+                "bàn"
+              ],
+              "answerIndex": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "flashcard_fill",
+      "path": "/review/flashcards",
+      "method": "GET",
+      "status": 200,
+      "source": "backend/src/review/review.service.ts#flashcards",
+      "body": {
+        "success": true,
+        "data": {
+          "mode": "fill",
+          "scope": "due",
+          "count": 1,
+          "cards": [
+            {
+              "wordId": "fixture-word-a",
+              "term": "apple",
+              "meaning": "quả táo",
+              "phonetic": null,
+              "examples": [],
+              "cloze": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "flashcard_match",
+      "path": "/review/flashcards",
+      "method": "GET",
+      "status": 200,
+      "source": "backend/src/review/review.service.ts#flashcards",
+      "body": {
+        "success": true,
+        "data": {
+          "mode": "match",
+          "scope": "due",
+          "count": 4,
+          "cards": [
+            {
+              "wordId": "fixture-word-0",
+              "term": "apple",
+              "meaning": "quả táo",
+              "phonetic": null,
+              "examples": []
+            },
+            {
+              "wordId": "fixture-word-1",
+              "term": "book",
+              "meaning": "sách",
+              "phonetic": null,
+              "examples": []
+            },
+            {
+              "wordId": "fixture-word-2",
+              "term": "chair",
+              "meaning": "ghế",
+              "phonetic": null,
+              "examples": []
+            },
+            {
+              "wordId": "fixture-word-3",
+              "term": "table",
+              "meaning": "bàn",
+              "phonetic": null,
+              "examples": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "quiz_generated",
+      "path": "/quiz/generate",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/review/quiz.service.ts#generate",
+      "body": {
+        "success": true,
+        "data": {
+          "quizId": "fixture-quiz-a",
+          "total": 4,
+          "questions": [
+            {
+              "index": 0,
+              "term": "apple",
+              "question": "Choose the meaning of apple",
+              "options": [
+                "quả táo",
+                "sách",
+                "ghế",
+                "bàn"
+              ]
+            },
+            {
+              "index": 1,
+              "term": "book",
+              "question": "Choose the meaning of book",
+              "options": [
+                "ghế",
+                "sách",
+                "bàn",
+                "quả táo"
+              ]
+            },
+            {
+              "index": 2,
+              "term": "chair",
+              "question": "Choose the meaning of chair",
+              "options": [
+                "bàn",
+                "sách",
+                "ghế",
+                "quả táo"
+              ]
+            },
+            {
+              "index": 3,
+              "term": "table",
+              "question": "Choose the meaning of table",
+              "options": [
+                "ghế",
+                "sách",
+                "quả táo",
+                "bàn"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "quiz_completed",
+      "path": "/quiz/fixture-quiz-a",
+      "method": "GET",
+      "status": 200,
+      "source": "backend/src/review/quiz.service.ts#get",
+      "body": {
+        "success": true,
+        "data": {
+          "quizId": "fixture-quiz-a",
+          "total": 4,
+          "score": 4,
+          "status": "COMPLETED",
+          "questions": [
+            {
+              "index": 0,
+              "term": "apple",
+              "question": "Choose the meaning of apple",
+              "options": [
+                "quả táo",
+                "sách",
+                "ghế",
+                "bàn"
+              ],
+              "userAnswer": 0,
+              "answerIndex": 0,
+              "explanation": "Fixture explanation"
+            },
+            {
+              "index": 1,
+              "term": "book",
+              "question": "Choose the meaning of book",
+              "options": [
+                "ghế",
+                "sách",
+                "bàn",
+                "quả táo"
+              ],
+              "userAnswer": 1,
+              "answerIndex": 1,
+              "explanation": "Fixture explanation"
+            },
+            {
+              "index": 2,
+              "term": "chair",
+              "question": "Choose the meaning of chair",
+              "options": [
+                "bàn",
+                "sách",
+                "ghế",
+                "quả táo"
+              ],
+              "userAnswer": 2,
+              "answerIndex": 2,
+              "explanation": "Fixture explanation"
+            },
+            {
+              "index": 3,
+              "term": "table",
+              "question": "Choose the meaning of table",
+              "options": [
+                "ghế",
+                "sách",
+                "quả táo",
+                "bàn"
+              ],
+              "userAnswer": 3,
+              "answerIndex": 3,
+              "explanation": "Fixture explanation"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "quiz_submitted",
+      "path": "/quiz/submit",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/review/quiz.service.ts#submit",
+      "body": {
+        "success": true,
+        "data": {
+          "quizId": "fixture-quiz-a",
+          "score": 4,
+          "total": 4,
+          "results": [
+            {
+              "index": 0,
+              "correct": true,
+              "yourAnswer": 0,
+              "answerIndex": 0,
+              "explanation": "Fixture explanation"
+            },
+            {
+              "index": 1,
+              "correct": true,
+              "yourAnswer": 1,
+              "answerIndex": 1,
+              "explanation": "Fixture explanation"
+            },
+            {
+              "index": 2,
+              "correct": true,
+              "yourAnswer": 2,
+              "answerIndex": 2,
+              "explanation": "Fixture explanation"
+            },
+            {
+              "index": 3,
+              "correct": true,
+              "yourAnswer": 3,
+              "answerIndex": 3,
+              "explanation": "Fixture explanation"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "quiz_saved",
+      "path": "/quiz/fixture-quiz-a/progress",
+      "method": "PATCH",
+      "status": 200,
+      "source": "backend/src/review/quiz.service.ts#saveProgress",
+      "body": {
+        "success": true,
+        "data": {
+          "saved": true
+        }
+      }
+    },
+    {
+      "name": "settings_updated",
+      "path": "/users/me/settings",
+      "method": "PATCH",
+      "status": 200,
+      "source": "backend/src/users/users.service.ts#updateSettings",
+      "body": {
+        "success": true,
+        "data": {
+          "dailyGoal": 20,
+          "cefrLevel": "B1",
+          "topics": [],
+          "reminderTime": "20:00",
+          "timeZone": "Asia/Ho_Chi_Minh",
+          "notifyEnabled": false,
+          "ttsVoice": "EN_US"
+        }
+      }
+    },
+    {
+      "name": "user_with_relations",
+      "path": "/users/me",
+      "method": "GET",
+      "status": 200,
+      "source": "backend/src/users/users.service.ts#getProfile",
+      "body": {
+        "success": true,
+        "data": {
+          "id": "fixture-user-a",
+          "email": "learner-a@example.invalid",
+          "provider": "LOCAL",
+          "emailVerified": false,
+          "role": "LEARNER",
+          "createdAt": "2026-10-17T00:00:00.000Z",
+          "updatedAt": "2026-10-17T00:00:00.000Z",
+          "setting": {
+            "dailyGoal": 20,
+            "cefrLevel": "B1",
+            "topics": [],
+            "reminderTime": "20:00",
+            "timeZone": "Asia/Ho_Chi_Minh",
+            "notifyEnabled": false,
+            "ttsVoice": "EN_US"
+          },
+          "streak": {
+            "currentStreak": 2,
+            "longestStreak": 3,
+            "streakFreezes": 1,
+            "lastActiveDate": "2026-10-17T00:00:00.000Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "streak",
+      "path": "/streak",
+      "method": "GET",
+      "status": 200,
+      "source": "backend/src/progress/gamification.service.ts#getStreak",
+      "body": {
+        "success": true,
+        "data": {
+          "currentStreak": 2,
+          "longestStreak": 3,
+          "streakFreezes": 1,
+          "lastActiveDate": "2026-10-17T00:00:00.000Z",
+          "today": {
+            "wordsReviewed": 4,
+            "dailyGoal": 20,
+            "goalMet": false
+          }
+        }
+      }
+    },
+    {
+      "name": "stats",
+      "path": "/stats/overview",
+      "method": "GET",
+      "status": 200,
+      "source": "backend/src/progress/stats.service.ts#overview",
+      "body": {
+        "success": true,
+        "data": {
+          "period": "all",
+          "totalWords": 3,
+          "mastered": 1,
+          "learning": 1,
+          "new": 1,
+          "retentionRate": 75,
+          "reviewsCount": 4,
+          "activeDays": 2,
+          "quizzes": {
+            "count": 1,
+            "avgScorePercent": 75
+          }
+        }
+      }
+    },
+    {
+      "name": "weakness",
+      "path": "/stats/weakness",
+      "method": "GET",
+      "status": 200,
+      "source": "backend/src/progress/stats.service.ts#weakness",
+      "body": {
+        "success": true,
+        "data": {
+          "weakTopics": [
+            {
+              "topic": "food",
+              "reviews": 4,
+              "accuracy": 75
+            }
+          ],
+          "weakWords": [
+            {
+              "term": "apple",
+              "meaning": "quả táo",
+              "fails": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "badges",
+      "path": "/badges",
+      "method": "GET",
+      "status": 200,
+      "source": "backend/src/progress/gamification.service.ts#getBadges",
+      "body": {
+        "success": true,
+        "data": {
+          "newlyEarned": [],
+          "badges": [
+            {
+              "code": "fixture",
+              "name": "Fixture",
+              "description": "Synthetic",
+              "icon": null,
+              "earned": false,
+              "earnedAt": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tutor",
+      "path": "/tutor/ask",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/ai/features/tutor.ts",
+      "body": {
+        "success": true,
+        "data": {
+          "answer": "Example answer",
+          "words": [
+            {
+              "term": "apple",
+              "meaning": "quả táo"
+            }
+          ],
+          "grammar": [
+            {
+              "title": "Articles",
+              "rule": "Use an before a vowel sound."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "writing",
+      "path": "/writing/grade",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/ai/features/writing.ts",
+      "body": {
+        "success": true,
+        "data": {
+          "correctedText": "I am learning.",
+          "issues": [
+            {
+              "original": "I is",
+              "correction": "I am",
+              "explanation": "Subject agreement",
+              "type": "grammar"
+            }
+          ],
+          "overallComment": "Practice",
+          "score": 8.5
+        }
+      }
+    },
+    {
+      "name": "grammar_qa",
+      "path": "/grammar-qa/ask",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/skills/grammar-qa.controller.ts",
+      "body": {
+        "success": true,
+        "data": {
+          "answer": "Example explanation"
+        }
+      }
+    },
+    {
+      "name": "pronunciation",
+      "path": "/pronunciation/score",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/ai/features/pronunciation.ts",
+      "body": {
+        "success": true,
+        "data": {
+          "score": 85.5,
+          "transcriptHeard": "apple",
+          "mispronounced": [],
+          "feedback": "Practice"
+        }
+      }
+    },
+    {
+      "name": "lookup",
+      "path": "/words/lookup",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/ai/features/dictionary.ts",
+      "body": {
+        "success": true,
+        "data": {
+          "term": "apple",
+          "partOfSpeech": "noun",
+          "phonetic": "",
+          "meaning": "quả táo",
+          "meaningEn": "A fruit",
+          "examples": [
+            {
+              "en": "An apple.",
+              "vi": "Một quả táo."
+            }
+          ],
+          "synonyms": [],
+          "antonyms": [],
+          "contextNote": ""
+        }
+      }
+    },
+    {
+      "name": "lookup_batch",
+      "path": "/words/lookup-batch",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/words/words.service.ts#lookupBatch",
+      "body": {
+        "success": true,
+        "data": {
+          "items": [
+            {
+              "term": "apple",
+              "result": {
+                "term": "apple",
+                "partOfSpeech": "noun",
+                "phonetic": "",
+                "meaning": "quả táo",
+                "meaningEn": "A fruit",
+                "examples": [
+                  {
+                    "en": "An apple.",
+                    "vi": "Một quả táo."
+                  }
+                ],
+                "synonyms": [],
+                "antonyms": [],
+                "contextNote": ""
+              }
+            },
+            {
+              "term": "unknown",
+              "error": "Failed"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "verify",
+      "path": "/words/verify",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/ai/features/vocab-verify.ts",
+      "body": {
+        "success": true,
+        "data": {
+          "partOfSpeech": "noun",
+          "phonetic": "",
+          "meaning": "quả táo",
+          "meaningEn": "A fruit",
+          "examples": [
+            {
+              "en": "An apple.",
+              "vi": "Một quả táo."
+            }
+          ],
+          "synonyms": [],
+          "antonyms": [],
+          "contextNote": "",
+          "isValid": true,
+          "correctedTerm": "apple",
+          "meaningVerdict": "match"
+        }
+      }
+    },
+    {
+      "name": "quick_add",
+      "path": "/words/quick-add",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/words/words.service.ts#quickAdd",
+      "body": {
+        "success": true,
+        "data": {
+          "word": {
+            "id": "fixture-word-a",
+            "userId": "fixture-user-a",
+            "term": "apple",
+            "meaning": "quả táo",
+            "phonetic": null,
+            "partOfSpeech": null,
+            "examples": [],
+            "synonyms": [],
+            "antonyms": [],
+            "topic": null,
+            "note": null,
+            "status": "NEW",
+            "quizzedInCycle": false,
+            "createdAt": "2026-10-17T00:00:00.000Z",
+            "updatedAt": "2026-10-17T00:00:00.000Z",
+            "srsData": {
+              "id": "fixture-srs-a",
+              "wordId": "fixture-word-a",
+              "interval": 1,
+              "easeFactor": 2.5,
+              "repetitions": 0,
+              "lastQuality": null,
+              "lastReviewedAt": null,
+              "nextReviewAt": "2026-10-17T00:00:00.000Z"
+            }
+          },
+          "isToeicTerm": true,
+          "synonyms": [
+            {
+              "word": "fruit",
+              "meaning": "trái cây",
+              "isToeic": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "examples",
+      "path": "/words/fixture-word-a/examples",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/words/words.service.ts#generateExamples",
+      "body": {
+        "success": true,
+        "data": {
+          "generated": [
+            {
+              "en": "An apple.",
+              "vi": "Một quả táo."
+            }
+          ],
+          "word": {
+            "id": "fixture-word-a",
+            "userId": "fixture-user-a",
+            "term": "apple",
+            "meaning": "quả táo",
+            "phonetic": null,
+            "partOfSpeech": null,
+            "examples": [],
+            "synonyms": [],
+            "antonyms": [],
+            "topic": null,
+            "note": null,
+            "status": "NEW",
+            "quizzedInCycle": false,
+            "createdAt": "2026-10-17T00:00:00.000Z",
+            "updatedAt": "2026-10-17T00:00:00.000Z",
+            "srsData": {
+              "id": "fixture-srs-a",
+              "wordId": "fixture-word-a",
+              "interval": 1,
+              "easeFactor": 2.5,
+              "repetitions": 0,
+              "lastQuality": null,
+              "lastReviewedAt": null,
+              "nextReviewAt": "2026-10-17T00:00:00.000Z"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "error_400",
+      "path": "/words",
+      "method": "GET",
+      "status": 400,
+      "source": "backend/src/common/filters/all-exceptions.filter.ts; 422 transport compatibility only",
+      "body": {
+        "success": false,
+        "statusCode": 400,
+        "message": [
+          "term must be a string"
+        ],
+        "error": "FixtureError",
+        "path": "/words",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "error_404",
+      "path": "/words",
+      "method": "GET",
+      "status": 404,
+      "source": "backend/src/common/filters/all-exceptions.filter.ts; 422 transport compatibility only",
+      "body": {
+        "success": false,
+        "statusCode": 404,
+        "message": "Fixture error",
+        "error": "FixtureError",
+        "path": "/words",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "error_409",
+      "path": "/words",
+      "method": "GET",
+      "status": 409,
+      "source": "backend/src/common/filters/all-exceptions.filter.ts; 422 transport compatibility only",
+      "body": {
+        "success": false,
+        "statusCode": 409,
+        "message": "Fixture error",
+        "error": "FixtureError",
+        "path": "/words",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "error_422",
+      "path": "/words",
+      "method": "GET",
+      "status": 422,
+      "source": "backend/src/common/filters/all-exceptions.filter.ts; 422 transport compatibility only",
+      "body": {
+        "success": false,
+        "statusCode": 422,
+        "message": [
+          "term must be a string"
+        ],
+        "error": "FixtureError",
+        "path": "/words",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "error_503",
+      "path": "/words",
+      "method": "GET",
+      "status": 503,
+      "source": "backend/src/common/filters/all-exceptions.filter.ts; 422 transport compatibility only",
+      "body": {
+        "success": false,
+        "statusCode": 503,
+        "message": "Fixture error",
+        "error": "FixtureError",
+        "path": "/words",
+        "timestamp": "2026-10-17T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "mobile_login",
+      "path": "/auth/mobile/login",
+      "method": "POST",
+      "status": 200,
+      "source": "backend/src/auth/mobile-auth.controller.ts + auth.service.ts; synthetic, not staging capture",
+      "body": {
+        "success": true,
+        "data": {
+          "user": {
+            "id": "fixture-user-a",
+            "email": "learner-a@example.invalid",
+            "provider": "LOCAL",
+            "emailVerified": false,
+            "role": "LEARNER",
+            "createdAt": "2026-10-17T00:00:00.000Z",
+            "updatedAt": "2026-10-17T00:00:00.000Z"
+          },
+          "accessToken": "fixture-access-not-a-jwt",
+          "refreshToken": "0000000000000000000000000000000000000000000000000000000000000000",
+          "accessExpiresIn": 900
+        }
+      }
+    },
+    {
+      "name": "mobile_register",
+      "path": "/auth/mobile/register",
+      "method": "POST",
+      "status": 201,
+      "source": "backend/src/auth/mobile-auth.controller.ts + auth.service.ts; synthetic, not staging capture",
+      "body": {
+        "success": true,
+        "data": {
+          "user": {
+            "id": "fixture-user-a",
+            "email": "learner-a@example.invalid",
+            "provider": "LOCAL",
+            "emailVerified": false,
+            "role": "LEARNER",
+            "createdAt": "2026-10-17T00:00:00.000Z",
+            "updatedAt": "2026-10-17T00:00:00.000Z"
+          },
+          "accessToken": "fixture-access-not-a-jwt",
+          "refreshToken": "0000000000000000000000000000000000000000000000000000000000000000",
+          "accessExpiresIn": 900
+        }
+      }
+    },
+    {
+      "name": "mobile_refresh",
+      "path": "/auth/mobile/refresh",
+      "method": "POST",
+      "status": 200,
+      "source": "backend/src/auth/mobile-auth.controller.ts; synthetic, not staging capture",
+      "body": {
+        "success": true,
+        "data": {
+          "accessToken": "fixture-access-not-a-jwt",
+          "refreshToken": "0000000000000000000000000000000000000000000000000000000000000000",
+          "accessExpiresIn": 900
+        }
+      }
+    },
+    {
+      "name": "mobile_logout",
+      "path": "/auth/mobile/logout",
+      "method": "POST",
+      "status": 200,
+      "source": "backend/src/auth/mobile-auth.controller.ts; synthetic, not staging capture",
+      "body": {
+        "success": true,
+        "data": {
+          "message": "Logged out"
+        }
+      }
+    }
+  ]
+}

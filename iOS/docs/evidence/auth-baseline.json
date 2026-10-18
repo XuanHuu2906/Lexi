@@ -1,0 +1,41 @@
+{
+  "scope": "Synthetic component probes only. JWT extraction + CSRF separately; no signature validation, HTTP, database, device or native auth.",
+  "cases": [
+    {
+      "name": "cookie_with_csrf",
+      "selectedCredentialSource": "cookie",
+      "csrfComponentResult": "allow"
+    },
+    {
+      "name": "cookie_without_csrf",
+      "selectedCredentialSource": "cookie",
+      "csrfComponentResult": 403
+    },
+    {
+      "name": "cookie_plus_bearer_without_csrf",
+      "selectedCredentialSource": "cookie",
+      "csrfComponentResult": 403
+    },
+    {
+      "name": "bearer_only_without_csrf",
+      "selectedCredentialSource": "bearer",
+      "csrfComponentResult": 403
+    },
+    {
+      "name": "bearer_get",
+      "selectedCredentialSource": "bearer",
+      "csrfComponentResult": "allow"
+    },
+    {
+      "name": "public_post",
+      "selectedCredentialSource": "none",
+      "csrfComponentResult": "allow"
+    }
+  ],
+  "generatedErrorFixtures": [
+    "auth_401",
+    "csrf_403",
+    "rate_limit_429",
+    "server_500"
+  ]
+}

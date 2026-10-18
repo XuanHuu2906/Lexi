@@ -6,5 +6,6 @@ import { UserRole } from '../../../generated/prisma/client';
 export interface AuthUser {
     userId: string;
     email: string;
+    authMechanism: 'cookie' | 'bearer';
     role?: UserRole;
 }

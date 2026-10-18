@@ -15,6 +15,10 @@ let AllExceptionsFilter = AllExceptionsFilter_1 = class AllExceptionsFilter {
         const ctx = host.switchToHttp();
         const response = ctx.getResponse();
         const request = ctx.getRequest();
+        const pathWithoutQuery = request.url.split('?')[0];
+        const isAuth = pathWithoutQuery.startsWith('/auth/');
+        if (isAuth)
+            response.setHeader('Cache-Control', 'no-store');
         const status = exception instanceof common_1.HttpException
             ? exception.getStatus()
             : common_1.HttpStatus.INTERNAL_SERVER_ERROR;
@@ -35,14 +39,18 @@ let AllExceptionsFilter = AllExceptionsFilter_1 = class AllExceptionsFilter {
             error = exception.name;
         }
         if (status >= 500) {
-            this.logger.error(`${request.method} ${request.url}`, exception instanceof Error ? exception.stack : String(exception));
+            if (isAuth) {
+                this.logger.error(`Authentication request failed (${status})`);
+            }
+            else
+                this.logger.error(`${request.method} ${request.url}`, exception instanceof Error ? exception.stack : String(exception));
         }
         const body = {
             success: false,
             statusCode: status,
             message,
             error,
-            path: request.url,
+            path: isAuth ? pathWithoutQuery : request.url,
             timestamp: new Date().toISOString(),
         };
         response.status(status).json(body);

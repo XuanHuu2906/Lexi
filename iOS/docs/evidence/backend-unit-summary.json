@@ -1,0 +1,14 @@
+{
+  "command": "rtk npm test -- --runInBand --json --outputFile=../iOS/docs/backend-unit-results.local.json",
+  "sourceCommit": "87760f17f0e40ae87447bf6cda9e2609ae0642a5",
+  "passedSuites": 5,
+  "failedSuites": 1,
+  "passedTests": 46,
+  "failedTests": 1,
+  "failures": [
+    {
+      "file": "backend/src/auth/auth.service.spec.ts",
+      "test": "AuthService login clears accumulated failures on successful login"
+    }
+  ]
+}
