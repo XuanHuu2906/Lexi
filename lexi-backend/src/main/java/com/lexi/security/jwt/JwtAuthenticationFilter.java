@@ -17,6 +17,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.lexi.security.account.AccountStateChecker;
 import java.io.IOException;
 import java.util.List;
+import com.lexi.security.error.JsonAuthenticationEntryPoint;
+import org.springframework.security.authentication.BadCredentialsException;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -25,22 +27,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   private final JwtTokenService jwtTokenService;
   private final AccountStateChecker accountStateChecker;
+  private final JsonAuthenticationEntryPoint authenticationEntryPoint;
 
   public JwtAuthenticationFilter(
       JwtTokenService jwtTokenService,
-      AccountStateChecker accountStateChecker) {
+      AccountStateChecker accountStateChecker,
+      JsonAuthenticationEntryPoint authenticationEntryPoint) {
+
     this.jwtTokenService = jwtTokenService;
     this.accountStateChecker = accountStateChecker;
+    this.authenticationEntryPoint = authenticationEntryPoint;
   }
 
   @Override
   protected boolean shouldNotFilter(
       HttpServletRequest request) {
-    String path = request.getRequestURI();
-    String healthPath = request.getContextPath() + "/health";
 
-    return "GET".equals(request.getMethod())
-        && healthPath.equals(path);
+    String path = request.getRequestURI();
+    String contextPath = request.getContextPath();
+    String method = request.getMethod();
+
+    boolean isHealth = "GET".equals(method)
+        && (contextPath + "/health").equals(path);
+
+    boolean isRegister = "POST".equals(method)
+        && (contextPath + "/auth/register").equals(path);
+
+    return isHealth || isRegister;
   }
 
   @Override
@@ -65,10 +78,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     try {
       jwt = jwtTokenService.verifyToken(token);
     } catch (JwtException | IllegalArgumentException ex) {
+
       SecurityContextHolder.clearContext();
 
-      response.setStatus(
-          HttpServletResponse.SC_UNAUTHORIZED);
+      authenticationEntryPoint.commence(
+          request,
+          response,
+          new BadCredentialsException(
+              "Invalid access token",
+              ex));
+
       return;
     }
 
@@ -77,8 +96,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
       SecurityContextHolder.clearContext();
 
-      response.setStatus(
-          HttpServletResponse.SC_UNAUTHORIZED);
+      authenticationEntryPoint.commence(
+          request,
+          response,
+          new BadCredentialsException(
+              "Account is not active"));
 
       return;
     }
