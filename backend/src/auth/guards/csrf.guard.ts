@@ -9,6 +9,7 @@ import { timingSafeEqual } from 'crypto';
 import type { Request } from 'express';
 import { CSRF_COOKIE, CSRF_HEADER } from '../auth-cookies';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { AuthUser } from '../types/jwt-payload.type';
 
 /** Methods that never mutate state and so don't need CSRF protection. */
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -38,6 +39,11 @@ export class CsrfGuard implements CanActivate {
       context.getClass(),
     ]);
     if (isPublic) {
+      return true;
+    }
+
+    // JwtAuthGuard precedes this guard. Never infer authentication from headers.
+    if ((req.user as AuthUser | undefined)?.authMechanism === 'bearer') {
       return true;
     }
 

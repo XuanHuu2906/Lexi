@@ -31,6 +31,8 @@ function makeUser(overrides: Partial<Record<string, unknown>> = {}) {
 describe('AuthService', () => {
   let service: AuthService;
   let prisma: {
+    $transaction: jest.Mock;
+    $queryRaw: jest.Mock;
     user: {
       findUnique: jest.Mock;
       create: jest.Mock;
@@ -40,11 +42,15 @@ describe('AuthService', () => {
       create: jest.Mock;
     };
   };
-  let jwt: { signAsync: jest.Mock };
+  let jwt: { signAsync: jest.Mock; decode: jest.Mock };
   let config: { get: jest.Mock };
 
   beforeEach(() => {
     prisma = {
+      $transaction: jest.fn((callback: (db: unknown) => unknown) =>
+        callback(prisma),
+      ),
+      $queryRaw: jest.fn().mockResolvedValue([]),
       user: {
         findUnique: jest.fn(),
         create: jest.fn(),
@@ -54,7 +60,10 @@ describe('AuthService', () => {
         create: jest.fn().mockResolvedValue({ id: 'rt-1' }),
       },
     };
-    jwt = { signAsync: jest.fn().mockResolvedValue('signed.jwt.token') };
+    jwt = {
+      signAsync: jest.fn().mockResolvedValue('signed.jwt.token'),
+      decode: jest.fn().mockReturnValue({ iat: 1000, exp: 1900 }),
+    };
     // Return the supplied default for every key (JWT_ACCESS_EXPIRES, etc.).
     config = { get: jest.fn((_key: string, def: unknown) => def) };
     service = new AuthService(
@@ -136,7 +145,11 @@ describe('AuthService', () => {
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { failedLoginAttempts: 0, lockedUntil: null },
+        data: {
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+          lastActiveAt: expect.any(Date),
+        },
       });
     });
 
