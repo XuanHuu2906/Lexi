@@ -86,10 +86,14 @@ final class LocalReminderService {
         await reconcile(userID: userID, draft: draft)
     }
 
-    func deactivate() async {
-        generation = UUID()
+    func deactivate(userID: String) async {
+        // A delayed old-account logout must not remove a new account's reminder.
+        guard ownerID == userID else { return }
+        let ticket = UUID()
+        generation = ticket
         ownerID = nil
         await enqueue { [self] in
+            guard generation == ticket, ownerID == nil else { return }
             center.removePendingNotificationRequests(withIdentifiers: [LocalReminderPlan.requestID])
             permission = .unknown
             message = nil
@@ -130,7 +134,7 @@ final class ReminderTapRouter {
     }
 }
 
-final class ReminderNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+final class ReminderNotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
     static let shared = ReminderNotificationDelegate()
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse,
