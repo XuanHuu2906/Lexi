@@ -39,7 +39,7 @@ struct OfflineSessionTests {
         #expect(second.navigation.ownerID == account.id)
         #expect(second.navigation.selectedTab == .vocabulary)
         #expect(second.navigation.paths.isEmpty)
-        #expect(second.message?.contains("offline") == false || second.message != nil)
+        #expect(second.message?.contains("chỉ đọc") == true)
 
         await auth.configure()
         // A successful reconnect must re-fetch /users/me and clear offline restrictions.
