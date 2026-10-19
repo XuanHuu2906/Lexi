@@ -2,7 +2,7 @@
 
 **Bắt đầu:** 19/10/2026. **Nhánh triển khai:** `codex/phase10-local-reminders-20261019` (chưa nghiệm thu trên iPhone).
 
-Azure Speech/Pronunciation của Phase 9 **được tạm hoãn theo yêu cầu** sau khi subscription Azure trước đây được xác nhận đã bị xóa. Phase 9 exit gate vẫn mở; chuyển sang Phase 10 không tương đương đã hoàn tất Phase 9.
+Azure Speech/Pronunciation của Phase 9 **được tạm hoãn theo yêu cầu** do phụ thuộc dịch vụ nhà cung cấp; Phase 9 exit gate vẫn mở. Chuyển sang Phase 10 không tương đương đã hoàn tất Phase 9. Không ghi thông tin tài khoản cloud/billing vào tài liệu public.
 
 ## Tiến độ từng nhóm
 
@@ -33,8 +33,8 @@ Azure Speech/Pronunciation của Phase 9 **được tạm hoãn theo yêu cầu*
 ```bash
 source ~/.local/share/lexi-ios/env.sh
 cd /mnt/d/LearnEnglish/Lexi/iOS
-swift test
-xtool dev build
+bash scripts/verify-phase10.sh
+# Chỉ chạy sau khi các bước trên PASS và iPhone đã kết nối:
 xtool dev
 ```
 
