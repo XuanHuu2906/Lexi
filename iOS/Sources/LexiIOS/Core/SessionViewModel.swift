@@ -120,15 +120,16 @@ final class SessionViewModel {
         let accountID: String?
         if case .authenticated(let me) = state { accountID = me.id }
         else { accountID = try? offlineProfile?.load(at: clock.now())?.id }
+        let id = UUID(); operation = id
+        profileSessionID = nil; offlineSession = false
+        // Invalidate private UI synchronously BEFORE awaiting any cache cleanup.
+        state = .signedOut; busy = true; message = nil; retryAfter = nil
         try? offlineProfile?.clear()
         if let accountID {
             // Works even when no authenticated SwiftUI shell was mounted.
             await OfflineNotebookCache(namespace: api.client.environment.apiBaseURL.absoluteString
                 + "|" + accountID).close(clear: true)
         }
-        let id = UUID(); operation = id
-        profileSessionID = nil; offlineSession = false
-        state = .signedOut; busy = true; message = nil; retryAfter = nil
         let report = await session.logout()
         guard operation == id else { return }
         busy = false
