@@ -41,7 +41,7 @@ struct MainTabView: View {
             await reminders.reconcile(userID: me.id, draft: me.setting.map(SettingsDraft.init))
         }
         .onDisappear {
-            Task { await reminders.deactivate() }
+            Task { await reminders.deactivate(userID: me.id) }
             audio.deactivate()
             if case .signedOut = model.state { study.deactivate(clear: true); ai.deactivate(clear: true) }
             else { study.deactivate(clear: false); ai.deactivate(clear: false) }
