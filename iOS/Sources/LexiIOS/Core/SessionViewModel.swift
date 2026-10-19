@@ -161,8 +161,9 @@ final class SessionViewModel {
         offlineSession = true
         state = .authenticated(profile)
         // Hide network-backed entry points until /users/me succeeds online.
+        let wasReviewing = navigation.selectedTab == .review
         navigation.paths = [:]
-        navigation.selectedTab = .vocabulary
+        navigation.selectedTab = wasReviewing ? .review : .vocabulary
         message = "Mất kết nối. Bạn vẫn có thể xem từ vựng và luyện thẻ đã lưu trên iPhone (chỉ đọc)."
         return true
     }
