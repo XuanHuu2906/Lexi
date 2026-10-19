@@ -102,8 +102,10 @@ struct AccountCacheIsolationTests {
         try await cacheA.save([fixtureWord("A", owner: "A")])
         try await cacheOld.save([fixtureWord("old", owner: "Old")])
         try OfflineNotebookCache.purgeAll(directory: root)
-        #expect(await OfflineNotebookCache(namespace: "backend|user-A", directory: root).load() == nil)
-        #expect(await OfflineNotebookCache(namespace: "backend|orphan-old", directory: root).load() == nil)
+        let reopenedA = OfflineNotebookCache(namespace: "backend|user-A", directory: root)
+        let reopenedOld = OfflineNotebookCache(namespace: "backend|orphan-old", directory: root)
+        #expect(await reopenedA.load() == nil)
+        #expect(await reopenedOld.load() == nil)
         // Never keep a detached writer alive after purge: close both before
         // purging in real session code, where registerNotebook tracks the active one.
         await cacheA.close(clear: false)
@@ -147,13 +149,19 @@ struct AccountCacheIsolationTests {
                 APIEndpoint(path: ["words"]))
         }
         for _ in 0..<2_000 {
-            if model.message?.contains("Phiên đã kết thúc") == true { break }
+            // Restoration and invalidation messages can arrive in either order.
+            // Wait for security state instead of relying on localized UI text.
+            let checkpoint = StudyCheckpointStore(defaults: defaults, namespace: namespaceA)
+            if model.navigation.ownerID == nil,
+               checkpoint.value.uncertainReviews.isEmpty,
+               (try? identity.read()) == nil { break }
             await Task.yield()
         }
         #expect(model.navigation.ownerID == nil && model.navigation.paths.isEmpty)
         #expect(try token.read() == nil)
         #expect(try identity.read() == nil)
-        #expect(await OfflineNotebookCache(namespace: namespaceA, directory: root).load() == nil)
+        let reopened = OfflineNotebookCache(namespace: namespaceA, directory: root)
+        #expect(await reopened.load() == nil)
         #expect(StudyCheckpointStore(defaults: defaults, namespace: namespaceA)
             .value.uncertainReviews.isEmpty)
         await #expect(throws: OfflineNotebookCache.CacheFailure.closed) {
