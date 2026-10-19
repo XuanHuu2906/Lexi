@@ -10,15 +10,19 @@ struct MainTabView: View {
     @State private var study: StudyFeatures
     @State private var ai: AIFeatures
     @State private var audio: AudioFeatures
+    private let offlineCache: OfflineNotebookCache
     private let reminders = LocalReminderService.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var savingLookup = false
 
     init(model: SessionViewModel, me: ApiMe, navigation: AppNavigation, api: LexiAPI) {
         self.model = model; self.me = me; self.navigation = navigation; self.api = api
-        let features = LearningFeatures(api: api)
+        let cache = OfflineNotebookCache(namespace: api.client.environment.apiBaseURL.absoluteString + "|" + me.id)
+        offlineCache = cache
+        let features = LearningFeatures(api: api, cache: cache)
         _features = State(initialValue: features)
-        _study = State(initialValue: StudyFeatures(api: api, userID: me.id, changed: features.invalidate))
+        _study = State(initialValue: StudyFeatures(api: api, userID: me.id,
+                                                   changed: features.invalidate, cache: cache))
         _ai = State(initialValue: AIFeatures(api: api, userID: me.id))
         _audio = State(initialValue: AudioFeatures(api: api))
     }
@@ -41,6 +45,9 @@ struct MainTabView: View {
             await reminders.reconcile(userID: me.id, draft: me.setting.map(SettingsDraft.init))
         }
         .onDisappear {
+            if navigation.ownerID != me.id {
+                Task { await offlineCache.close(clear: true) }
+            }
             Task { await reminders.deactivate(userID: me.id) }
             audio.deactivate()
             if case .signedOut = model.state { study.deactivate(clear: true); ai.deactivate(clear: true) }
@@ -86,7 +93,8 @@ struct MainTabView: View {
             LearnHomeView()
         case .settings:
             SettingsView(model: features.settings, session: model, email: me.email,
-                         userID: me.id, reminders: reminders, changed: features.invalidate)
+                         userID: me.id, reminders: reminders, offlineCache: offlineCache,
+                         changed: features.invalidate)
         }
     }
 

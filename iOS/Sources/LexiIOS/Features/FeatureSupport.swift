@@ -82,9 +82,10 @@ final class LearningFeatures {
     let settings: SettingsViewModel
     private(set) var revision = 0
 
-    init(api: LexiAPI) {
+    init(api: LexiAPI, cache: OfflineNotebookCache? = nil) {
         dashboard = DashboardViewModel(repository: DashboardRepository(api: api))
-        words = WordListViewModel(api: api.words)
+        words = WordListViewModel(api: api.words, cache: cache,
+            notebook: NotebookFlashcards(words: api.words, cache: cache))
         settings = SettingsViewModel(api: ProfileRepository(api: api))
     }
 

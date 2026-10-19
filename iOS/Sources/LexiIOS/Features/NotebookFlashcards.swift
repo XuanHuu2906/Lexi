@@ -14,12 +14,34 @@ extension WordsAPI: FlashcardWordListing {}
 // The deployed /review/flashcards endpoint has no cursor/exclusions and repeats its first ten words.
 struct NotebookFlashcards: FlashcardServing {
     let words: any FlashcardWordListing
+    var cache: OfflineNotebookCache? = nil
 
     func flashcards(mode: FlashcardMode, scope: FlashcardScope, limit: Int,
                     excluding: Set<String>) async throws -> FlashcardSet {
         guard (1...50).contains(limit) else { throw HTTPError.invalidRequest }
+        do {
+            let all = try await fetchNotebook()
+            // Only save after ALL pages passed validation. A failed write must
+            // never block normal online practice (e.g. notebook > cache budget).
+            try? await cache?.save(all)
+            return Self.makeDeck(words: all, mode: mode, scope: scope,
+                                 limit: limit, excluding: excluding)
+        } catch {
+            guard !Task.isCancelled, Self.isConnectivityFailure(error),
+                  let snapshot = await cache?.load() else { throw error }
+            return Self.makeDeck(words: snapshot.words, mode: mode, scope: scope,
+                                 limit: limit, excluding: excluding, offline: true)
+        }
+    }
+
+    static func isConnectivityFailure(_ error: any Error) -> Bool {
+        switch error as? HTTPError { case .network, .timeout: true; default: false }
+    }
+
+    func fetchNotebook(maxWords: Int? = nil) async throws -> [Word] {
         var all: [Word] = []
         var ids = Set<String>()
+        var expectedTotal: Int?
         var query = WordsQuery(sort: .oldest, limit: 100)
         while true {
             try Task.checkCancellation()
@@ -27,18 +49,26 @@ struct NotebookFlashcards: FlashcardServing {
             try Task.checkCancellation()
             guard page.page == query.page, page.limit == query.limit, page.total >= 0,
                   page.items.count <= query.limit else { throw HTTPError.invalidResponse }
+            if let expectedTotal, page.total != expectedTotal { throw HTTPError.invalidResponse }
+            expectedTotal = page.total
+            if let maxWords, page.total > maxWords { throw OfflineNotebookCache.CacheFailure.tooLarge }
             let fresh = page.items.filter { ids.insert($0.id).inserted }
             all += fresh
+            if let maxWords, all.count > maxWords { throw OfflineNotebookCache.CacheFailure.tooLarge }
             if page.page * page.limit >= page.total { break }
             // Fail instead of showing a false end-of-round if pagination stops advancing.
             guard !fresh.isEmpty else { throw HTTPError.invalidResponse }
             query.page += 1
         }
-        return Self.makeDeck(words: all, mode: mode, scope: scope, limit: limit, excluding: excluding)
+        // A server returning an empty/short last page must not quietly promote
+        // 100 of 125 words into a "complete" offline snapshot.
+        guard all.count == expectedTotal else { throw HTTPError.invalidResponse }
+        return all
     }
 
     static func makeDeck(words: [Word], mode: FlashcardMode, scope: FlashcardScope,
-                         limit: Int, excluding: Set<String>, now: Date = .now) -> FlashcardSet {
+                         limit: Int, excluding: Set<String>, now: Date = .now,
+                         offline: Bool = false) -> FlashcardSet {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 7 * 3600)!
         let today = calendar.startOfDay(for: now)
@@ -69,6 +99,7 @@ struct NotebookFlashcards: FlashcardServing {
                                      phonetic: word.phonetic, examples: word.examples, options: options,
                                      answerIndex: options?.firstIndex(of: word.meaning), cloze: mode == .fill ? cloze : nil)
         }
-        return FlashcardSet(mode: mode, scope: servedScope, count: cards.count, cards: cards)
+        return FlashcardSet(mode: mode, scope: servedScope, count: cards.count,
+                            cards: cards, offline: offline)
     }
 }

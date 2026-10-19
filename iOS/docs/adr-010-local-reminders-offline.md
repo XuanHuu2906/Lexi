@@ -24,3 +24,13 @@
 - No background polling every minute: Background App Refresh is best effort and OS controlled.
 
 This document records decisions, **not proof that offline caching or APNs is implemented**.
+
+## Offline read-only V1 implementation update (Phase 10 PR)
+
+- Persistence selected: **file-backed JSON Codable snapshot**. A SwiftData migration is not warranted before device compatibility/perf tests. The snapshot is stored in Application Support, file protected with `.complete` on iOS and a non-reversible SHA-256 file name derived from HTTPS backend origin + current user ID (no email/ID in filename). Linux tests use a deterministic non-cryptographic hash fallback; iOS uses CryptoKit.
+- Cache payload includes only `Word` data returned by the server, `schema=1`, `savedAt` and at most **1,000 words / 2 MiB**. Reading checks length, schema, account-specific path and 30-day TTL. No AI prompt, voice clip, keys, cookie or authorization info.
+- Cache is created automatically **only after Flashcards fetches all notebook pages successfully**, or by the explicit **Lưu sổ từ để xem offline** button in the word list. A canceled/failed paginated fetch never overwrites a previous valid cache and a notebook exceeding budget is not silently truncated.
+- `WordListViewModel` uses cache only for network/timeout failure, with a clear stale/read-only label, offline local search/filter/page and no Add/Lookup/delete route while offline. HTTP 401/403/5xx/validation never falls back to offline.
+- Flashcards derives an ephemeral local-only deck from cached notebook after network/timeout (no SRS server mutations). The screen explicitly labels the offline practice as unsynced. On reconnect, requesting the page uses the backend again; there is **no queued mutation replay**.
+- On session exit/account change the owning shell closes and removes the account snapshot. Identity/account isolation, TTL, oversized and interrupted fetch paths have Swift unit tests; the iPhone airplane-mode/relaunch test remains mandatory.
+- Scope limits: no complete offline *word detail* editing or snapshot of quiz/Review due counts. If cache has not been fully populated, offline word list/Flashcards cannot claim to contain all words. Manual cache refresh is required to update a stale snapshot when app remains online; online views always query the server.
