@@ -1,10 +1,15 @@
 #if os(iOS)
 import SwiftUI
+import UserNotifications
 
 @main
 struct LexiIOSApp: App {
     private let container = AppContainer.live()
-    init() { AudioTemporaryFiles.clearAbandoned() }
+    init() {
+        AudioTemporaryFiles.clearAbandoned()
+        // Register before launch handling so cold-start notification taps are not lost.
+        UNUserNotificationCenter.current().delegate = ReminderNotificationDelegate.shared
+    }
     var body: some Scene {
         WindowGroup {
             SessionRootView(container: container)

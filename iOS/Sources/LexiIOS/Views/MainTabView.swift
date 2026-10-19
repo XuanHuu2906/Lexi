@@ -10,6 +10,7 @@ struct MainTabView: View {
     @State private var study: StudyFeatures
     @State private var ai: AIFeatures
     @State private var audio: AudioFeatures
+    private let reminders = LocalReminderService.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var savingLookup = false
 
@@ -35,14 +36,29 @@ struct MainTabView: View {
             }
         }
         .privacySensitive()
-        .task { savingLookup = model.pendingLookup != nil }
+        .task {
+            savingLookup = model.pendingLookup != nil
+            await reminders.reconcile(userID: me.id, draft: me.setting.map(SettingsDraft.init))
+        }
         .onDisappear {
+            Task { await reminders.deactivate(userID: me.id) }
             audio.deactivate()
             if case .signedOut = model.state { study.deactivate(clear: true); ai.deactivate(clear: true) }
             else { study.deactivate(clear: false); ai.deactivate(clear: false) }
         }
         .onChange(of: scenePhase) { _, phase in if phase != .active { ai.suspend() } }
         .onChange(of: scenePhase) { _, phase in if phase == .background { audio.suspend() } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task {
+                    // Re-fetch account preferences on foreground, not in background;
+                    // never overwrite an unsaved Settings form just to reschedule.
+                    if !features.settings.dirty { await features.settings.load() }
+                    await reminders.reconcile(userID: me.id,
+                        draft: features.settings.baseline ?? me.setting.map(SettingsDraft.init))
+                }
+            }
+        }
         .sheet(isPresented: $savingLookup, onDismiss: { model.pendingLookup = nil }) {
             if let input = model.pendingLookup {
                 AddWordSheet(api: api.words, input: input, changed: features.invalidate)
@@ -68,7 +84,9 @@ struct MainTabView: View {
                        locale: audioLocale)
         case .learn:
             LearnHomeView()
-        case .settings: SettingsView(model: features.settings, session: model, email: me.email, changed: features.invalidate)
+        case .settings:
+            SettingsView(model: features.settings, session: model, email: me.email,
+                         userID: me.id, reminders: reminders, changed: features.invalidate)
         }
     }
 

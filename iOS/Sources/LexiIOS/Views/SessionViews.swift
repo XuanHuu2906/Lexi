@@ -4,6 +4,7 @@ import SwiftUI
 struct SessionRootView: View {
     let container: AppContainer
     @Environment(\.scenePhase) private var scenePhase
+    @State private var reminderTap = ReminderTapRouter.shared
 
     var body: some View {
         Group {
@@ -13,6 +14,15 @@ struct SessionRootView: View {
                     .task { await model.restore() }
                     .onChange(of: scenePhase) { _, phase in
                         if phase == .active { Task { await model.restore() } }
+                    }
+                    .onChange(of: reminderTap.pendingReview) { _, _ in
+                        reminderTap.routeIfPossible(model.navigation)
+                    }
+                    .onChange(of: model.navigation.ownerID) { _, _ in
+                        reminderTap.routeIfPossible(model.navigation)
+                    }
+                    .task(id: model.navigation.ownerID) {
+                        reminderTap.routeIfPossible(model.navigation)
                     }
             } else { WelcomeView(container: container) }
         }

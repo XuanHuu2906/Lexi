@@ -5,6 +5,8 @@ struct SettingsView: View {
     @Bindable var model: SettingsViewModel
     let session: SessionViewModel
     let email: String
+    let userID: String
+    let reminders: LocalReminderService
     let changed: () -> Void
     @State private var confirmingLogout = false
     @State private var confirmingReload = false
@@ -12,6 +14,7 @@ struct SettingsView: View {
     @State private var attempt = 0
     @AppStorage(SpeechPreferences.speedKey) private var speechSpeed = 0.85
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         Form {
@@ -37,8 +40,30 @@ struct SettingsView: View {
                     DatePicker("Giờ nhắc học", selection: reminderDate, displayedComponents: .hourAndMinute)
                         .environment(\.timeZone, reminderCalendar.timeZone)
                     Toggle("Bật nhắc học trên tài khoản", isOn: $model.draft.notifyEnabled)
-                    Text("Tùy chọn đồng bộ với web. Thông báo trên iPhone sẽ được hỗ trợ trong bản cập nhật sau.")
+                    Text("Giờ nhắc học và múi giờ được lưu cùng tài khoản. iPhone nhắc hàng ngày, không hiển thị số từ đến hạn khi chưa đồng bộ.")
                         .font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
+                    if model.baseline?.notifyEnabled == true {
+                        if let message = reminders.message {
+                            Text(message).font(LexiTypography.caption)
+                                .foregroundStyle(LexiColors.textSecondary)
+                                .accessibilityIdentifier("local-reminder-status")
+                        }
+                        if reminders.permission == .authorized || reminders.permission == .provisional {
+                            Label("Thông báo cục bộ đã được cấp quyền trên iPhone", systemImage: "checkmark.circle.fill")
+                                .font(LexiTypography.caption).foregroundStyle(LexiColors.success)
+                        } else {
+                            LexiButton(title: "Bật thông báo trên iPhone", variant: .secondary,
+                                       isDisabled: model.dirty || model.saving || model.busy) {
+                                guard session.navigation.ownerID == userID, let saved = model.baseline else { return }
+                                Task { await reminders.requestOnDevice(userID: userID, draft: saved) }
+                            }
+                        }
+                        if reminders.permission == .denied {
+                            LexiButton(title: "Mở Cài đặt thông báo iPhone", variant: .secondary) {
+                                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                            }
+                        }
+                    }
                 }.disabled(model.saving || model.busy)
                 Section("Phát âm") {
                     Picker("Giọng đọc", selection: $model.draft.ttsVoice) {
@@ -62,7 +87,13 @@ struct SettingsView: View {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     LexiButton(title: "Lưu cài đặt", isLoading: model.saving,
                                isDisabled: !model.dirty || model.busy || model.draft.validation != nil || model.feedback?.canRetry(at: context.date) == false) {
-                        Task { if await model.save() { changed() } }
+                        Task {
+                            if await model.save() {
+                                guard session.navigation.ownerID == userID else { return }
+                                changed()
+                                await reminders.reconcile(userID: userID, draft: model.baseline)
+                            }
+                        }
                     }
                 }
                 if model.dirty {
@@ -85,11 +116,29 @@ struct SettingsView: View {
             LexiButton(title: "Đăng xuất", variant: .destructive, isLoading: session.busy) { confirmingLogout = true }
         }
         .lexiFormStyle()
-        .task(id: attempt) { await model.load() }
-        .refreshable { if model.dirty { confirmingReload = true } else { await model.load() } }
+        .task(id: attempt) {
+            await model.load()
+            if session.navigation.ownerID == userID && model.loaded && !model.dirty {
+                await reminders.reconcile(userID: userID, draft: model.baseline)
+            }
+        }
+        .refreshable {
+            if model.dirty { confirmingReload = true }
+            else {
+                await model.load()
+                if session.navigation.ownerID == userID && model.loaded {
+                    await reminders.reconcile(userID: userID, draft: model.baseline)
+                }
+            }
+        }
         .onChange(of: scenePhase) { _, phase in if phase == .active { attempt += 1 } }
         .confirmationDialog("Bỏ thay đổi chưa lưu và tải lại?", isPresented: $confirmingReload, titleVisibility: .visible) {
-            Button("Bỏ thay đổi và tải lại", role: .destructive) { Task { await model.load(discardChanges: true) } }
+            Button("Bỏ thay đổi và tải lại", role: .destructive) { Task {
+                await model.load(discardChanges: true)
+                if session.navigation.ownerID == userID && model.loaded {
+                    await reminders.reconcile(userID: userID, draft: model.baseline)
+                }
+            } }
             Button("Hủy", role: .cancel) {}
         }
         .confirmationDialog("Bỏ các thay đổi chưa lưu?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
