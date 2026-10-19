@@ -58,8 +58,14 @@ struct AccountCacheIsolationTests {
         model.registerNotebook(cacheA, userID: ownerA)
         let checkpointA = StudyCheckpointStore(defaults: defaults, namespace: namespaceA)
         checkpointA.update { $0.uncertainReviews["srs-user-A"] = "private-review" }
+        var stoppedFeatures = false
+        model.registerFeatureCleanup(userID: ownerA) {
+            stoppedFeatures = true
+            checkpointA.close(clear: true)
+        }
 
         await model.logout()
+        #expect(stoppedFeatures)
         #expect(try token.read() == nil)
         #expect(try profileStore.read() == nil)
         #expect(model.navigation.ownerID == nil && model.navigation.paths.isEmpty)
@@ -69,6 +75,8 @@ struct AccountCacheIsolationTests {
         await #expect(throws: OfflineNotebookCache.CacheFailure.closed) {
             try await cacheA.save([fixtureWord("late", owner: "A")])
         }
+        // Even a late study callback must not recreate a UserDefaults record.
+        checkpointA.update { $0.uncertainReviews["late-private-write"] = "must-not-persist" }
         let checkpointAfter = StudyCheckpointStore(defaults: defaults, namespace: namespaceA)
         #expect(checkpointAfter.value.uncertainReviews.isEmpty)
 
