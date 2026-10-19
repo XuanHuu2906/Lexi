@@ -81,12 +81,10 @@ final class PronunciationViewModel {
         let reference = recordedReference
         let value = await request.run(.pronunciation, work: { [api] in try await api.score(reference: reference, audio: clip.file) })
         guard active else { return }
+        // AIRequestGate owns upload error feedback (HTTP category, no raw payload).
+        // 'notice' is reserved for local recording/permission errors to avoid two
+        // conflicting banners for the same failed request.
         if let value { result = value }
-        else if request.state == .serverError {
-            notice = "Dịch vụ chấm âm thanh hiện chưa trả được kết quả. Bản ghi chưa được chấm; hãy thử lại sau."
-        } else if request.state == .validationError {
-            notice = "Máy chủ chưa chấp nhận bản ghi hoặc câu mẫu. Hãy kiểm tra câu và ghi lại rõ hơn."
-        }
     }
     func clearClip() {
         recorder.discard(); recorder.stopPlayback()
