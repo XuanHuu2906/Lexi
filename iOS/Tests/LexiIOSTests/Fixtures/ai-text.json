@@ -1,0 +1,26 @@
+{
+  "provenance": "Synthetic source-derived fixtures, 2026-10-19. Sources: backend/src/skills/*controller.ts, backend/src/ai/features/{tutor,writing,grammar,context,conversation}.ts, backend/src/grammar/grammar.service.ts, backend/src/conversation/conversation.service.ts. Not staging captures.",
+  "cases": {
+    "tutor": {"answer":"Use ‘although’ to introduce contrast.","words":[{"term":"although","meaning":"mặc dù"}],"grammar":[{"title":"Contrast","rule":"Although + clause"}]},
+    "tutor_missing": {"answer":"A short reply."},
+    "tutor_null": {"answer":"No takeaways.","words":null,"grammar":null},
+    "grammar_qa": {"answer":"Use the present perfect for an experience."},
+    "writing": {"correctedText":"I am learning. 👩🏽‍💻","issues":[{"original":"I is","correction":"I am","explanation":"Chủ ngữ I đi với am.","type":"grammar"}],"overallComment":"Tiếp tục luyện nhé.","score":8.5},
+    "context": {"highlights":[{"word":"ambitious","meaning":"tham vọng","reason":"Một tính từ mô tả kế hoạch."}],"note":"Từ gợi ý theo trình độ."},
+    "context_empty": {"highlights":[],"note":"Chưa có từ khó cần giải thích."},
+    "grammar_preview": {"isValid":true,"title":null,"formula":"S + have/has + V3","explanation":"Diễn tả trải nghiệm.","examples":["I have visited Hue. — Tôi đã đến Huế."]},
+    "grammar_invalid": {"isValid":false,"title":"Unknown","formula":"?","explanation":"Không nhận ra quy tắc.","examples":[]},
+    "grammar_rule": {"id":"rule-a","title":null,"formula":"S + have/has + V3","explanation":"Diễn tả trải nghiệm.","examples":["I have visited Hue. — Tôi đã đến Huế."],"createdAt":"2026-10-19T00:00:00.000Z","updatedAt":"2026-10-19T00:00:00.000Z"},
+    "grammar_list": {"items":[{"id":"rule-a","title":null,"formula":"S + have/has + V3","explanation":"Diễn tả trải nghiệm.","examples":[],"createdAt":"2026-10-19T00:00:00.000Z","updatedAt":"2026-10-19T00:00:00.000Z"}],"total":1,"page":1,"limit":20},
+    "grammar_examples": {"generated":["She has arrived. — Cô ấy đã đến."],"rule":{"id":"rule-a","title":"Present perfect","formula":"S + have/has + V3","explanation":"Diễn tả trải nghiệm.","examples":["I have visited Hue.","She has arrived. — Cô ấy đã đến."],"createdAt":"2026-10-19T00:00:00.000Z","updatedAt":"2026-10-19T00:05:00.000Z"}},
+    "deleted": {"deleted":true},
+    "conversation_list": [{"id":"conversation-a","scenario":"At a restaurant","status":"ACTIVE","createdAt":"2026-10-19T00:00:00.000Z","updatedAt":"2026-10-19T00:00:00.000Z"}],
+    "conversation_empty": [],
+    "conversation_start": {"id":"conversation-a","scenario":"At a restaurant","status":"ACTIVE","opening":"Welcome! A table for how many?"},
+    "conversation_reply": {"reply":"Right this way.","feedback":"Câu trả lời rõ ràng.","suggestion":"A table for two, please."},
+    "conversation_active": {"id":"conversation-a","scenario":"At a restaurant","status":"ACTIVE","transcript":[{"role":"assistant","content":"Welcome! A table for how many?"}],"feedback":null,"createdAt":"2026-10-19T00:00:00.000Z"},
+    "conversation_replied": {"id":"conversation-a","scenario":"At a restaurant","status":"ACTIVE","transcript":[{"role":"assistant","content":"Welcome! A table for how many?"},{"role":"user","content":"For two, please."},{"role":"assistant","content":"Right this way.","feedback":"Câu trả lời rõ ràng.","suggestion":"A table for two, please."}],"feedback":null,"createdAt":"2026-10-19T00:00:00.000Z"},
+    "conversation_end": {"summary":{"strengths":"Trả lời lịch sự.","weaknesses":"Luyện thêm từ vựng.","overall":"Tiến bộ tốt."}},
+    "conversation_completed": {"id":"conversation-a","scenario":"At a restaurant","status":"COMPLETED","transcript":[{"role":"assistant","content":"Welcome! A table for how many?"}],"feedback":{"strengths":"Trả lời lịch sự.","weaknesses":"Luyện thêm từ vựng.","overall":"Tiến bộ tốt."},"createdAt":"2026-10-19T00:00:00.000Z"}
+  }
+}

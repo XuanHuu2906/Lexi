@@ -57,7 +57,7 @@ struct LexiCard<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(LexiSpacing.xl)
             .background(LexiColors.surface, in: RoundedRectangle(cornerRadius: LexiRadii.card))
-            .overlay(RoundedRectangle(cornerRadius: LexiRadii.card).strokeBorder(LexiColors.border, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: LexiRadii.card).strokeBorder(LexiColors.borderSubtle, lineWidth: 1))
     }
 }
 
@@ -87,7 +87,10 @@ struct ErrorState: View {
                 .font(LexiTypography.heading).foregroundStyle(LexiColors.error)
             Text(message).foregroundStyle(LexiColors.textSecondary)
             if let retry { LexiButton(title: "Thử lại", variant: .secondary, action: retry) }
-        }.frame(maxWidth: .infinity).multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity).multilineTextAlignment(.center)
+        .padding(LexiSpacing.lg)
+        .background(LexiColors.berry100, in: RoundedRectangle(cornerRadius: LexiRadii.input))
     }
 }
 
@@ -101,7 +104,7 @@ struct LoadingState: View {
             VStack(spacing: LexiSpacing.md) {
                 ForEach(0..<3) { _ in
                     RoundedRectangle(cornerRadius: LexiRadii.input)
-                        .fill(LexiColors.border).frame(height: LexiSpacing.minHitTarget)
+                        .fill(LexiColors.cloud200).frame(height: LexiSpacing.minHitTarget)
                 }
             }.accessibilityHidden(true)
         }.frame(maxWidth: .infinity).padding(.vertical, LexiSpacing.xl)
@@ -111,11 +114,15 @@ struct LoadingState: View {
 struct BadgeChip: View {
     let title: String
     var symbol = "sparkles"
+    var foreground = LexiColors.grape700
+    var background = LexiColors.brandSoft
     var body: some View {
         Label(title, systemImage: symbol).font(LexiTypography.caption)
-            .foregroundStyle(LexiColors.grape600)
+            .foregroundStyle(foreground)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, LexiSpacing.md).padding(.vertical, LexiSpacing.sm)
-            .background(LexiColors.brandSoft, in: Capsule())
+            .background(background, in: Capsule())
+            .accessibilityElement(children: .combine)
     }
 }
 
@@ -137,26 +144,25 @@ struct ProgressBar: View {
 struct StreakBadge: View {
     let days: Int
     var body: some View {
-        Label("\(max(0, days)) ngày liên tiếp", systemImage: "flame.fill")
-            .font(LexiTypography.heading).foregroundStyle(LexiColors.ink900)
-            .padding(LexiSpacing.md)
-            .background(LexiColors.sun400.opacity(0.25), in: RoundedRectangle(cornerRadius: LexiRadii.input))
-            .accessibilityElement(children: .combine)
+        BadgeChip(title: "\(max(0, days)) ngày liên tiếp", symbol: "flame.fill",
+                  foreground: LexiColors.due, background: LexiColors.coral50)
     }
 }
 
 struct LexiInput<Content: View>: View {
     let title: String
+    var isFocused = false
     @ViewBuilder let content: Content
     var body: some View {
         VStack(alignment: .leading, spacing: LexiSpacing.sm) {
-            Text(title).font(LexiTypography.heading).accessibilityHidden(true)
+            Text(title).font(LexiTypography.label).accessibilityHidden(true)
             content
                 .accessibilityLabel(title)
                 .padding(LexiSpacing.md)
                 .frame(minHeight: LexiSpacing.minHitTarget)
                 .background(LexiColors.surface, in: RoundedRectangle(cornerRadius: LexiRadii.input))
-                .overlay(RoundedRectangle(cornerRadius: LexiRadii.input).strokeBorder(LexiColors.border, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: LexiRadii.input)
+                    .strokeBorder(isFocused ? LexiColors.grape500 : LexiColors.border, lineWidth: isFocused ? 2 : 1))
         }
     }
 }

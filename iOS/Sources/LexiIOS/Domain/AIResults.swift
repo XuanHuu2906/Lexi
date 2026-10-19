@@ -6,6 +6,17 @@ struct TutorResult: Decodable, Sendable {
     let answer: String
     let words: [SavableWord]
     let grammar: [SavableGrammar]
+
+    private enum CodingKeys: String, CodingKey { case answer, words, grammar }
+    init(answer: String, words: [SavableWord] = [], grammar: [SavableGrammar] = []) {
+        self.answer = answer; self.words = words; self.grammar = grammar
+    }
+    init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        answer = try values.decode(String.self, forKey: .answer)
+        words = try values.decodeIfPresent([SavableWord].self, forKey: .words) ?? []
+        grammar = try values.decodeIfPresent([SavableGrammar].self, forKey: .grammar) ?? []
+    }
 }
 struct WritingResult: Decodable, Sendable {
     struct Issue: Decodable, Sendable { let original: String; let correction: String; let explanation: String; let type: String }

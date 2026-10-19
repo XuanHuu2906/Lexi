@@ -42,7 +42,7 @@ struct APIClient: Sendable {
     // Opt in only after the server/ingress supports tracing this header.
     var sendsRequestID = false
 
-    func send<Response>(_ endpoint: APIEndpoint<Response>) async throws -> Response {
+    func send<Response>(_ endpoint: APIEndpoint<Response>, uploadFile: URL? = nil) async throws -> Response {
         do {
             try Task.checkCancellation()
             var credential = endpoint.requiresAuth ? try await tokens.credential() : AccessCredential(token: nil, sessionID: nil)
@@ -54,7 +54,14 @@ struct APIClient: Sendable {
                     try Task.checkCancellation()
                     if endpoint.requiresAuth { try await tokens.validate(credential) }
                     let request = try endpoint.request(baseURL: environment.apiBaseURL, token: credential.token, requestID: requestID)
-                    let (data, response) = try await transport.send(request)
+                    let data: Data
+                    let response: HTTPURLResponse
+                    if let uploadFile {
+                        guard endpoint.method == .post, endpoint.body == nil, uploadFile.isFileURL else { throw HTTPError.invalidRequest }
+                        (data, response) = try await transport.upload(request, fromFile: uploadFile)
+                    } else {
+                        (data, response) = try await transport.send(request)
+                    }
                     try Task.checkCancellation()
                     if endpoint.requiresAuth { try await tokens.validate(credential) }
                     if response.statusCode == 401 && endpoint.requiresAuth {

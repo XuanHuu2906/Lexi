@@ -63,6 +63,14 @@ final class SettingsViewModel {
     private let api: any ProfileServing
     init(api: any ProfileServing) { self.api = api }
 
+    func discardChanges() {
+        guard loaded, !busy, !saving else { return }
+        draft = baseline ?? SettingsDraft()
+        saved = false
+        // Discarding a draft must not bypass a server-issued retry cooldown.
+        if feedback?.retryAt == nil { feedback = nil }
+    }
+
     func load(discardChanges: Bool = false) async {
         guard !busy, !saving, (!dirty || discardChanges), feedback?.canRetry() != false else { return }
         busy = true; feedback = nil; defer { busy = false }

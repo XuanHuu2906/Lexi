@@ -2,6 +2,7 @@ import Foundation
 
 enum BackendWordStatus: String, Codable, Sendable { case new = "NEW", learning = "LEARNING", mastered = "MASTERED" }
 enum WordStatus: String, Codable, Sendable { case new, due, learned }
+enum WordDisplayStatus: Sendable { case new, learning, due, mastered }
 
 struct SRSData: Decodable, Sendable, Equatable {
     let interval: Int
@@ -42,7 +43,7 @@ struct Word: Sendable, Equatable, Identifiable {
     let meaning: String
     let phonetic: String?
     let pos: String?
-    // 'due' is the web-compatible display status; never infer a due date from it.
+    // Legacy transport mapping: 'due' represents LEARNING, not necessarily due now.
     let status: WordStatus
     let topic: String?
     let examples: [String]
@@ -51,6 +52,18 @@ struct Word: Sendable, Equatable, Identifiable {
     let note: String?
     let createdAt: String
     let nextReviewAt: String?
+
+    func displayStatus(at date: Date = .now) -> WordDisplayStatus {
+        switch status {
+        case .new: return .new
+        case .learned: return .mastered
+        case .due:
+            guard let nextReviewAt, let nextReview = APIDate.parse(nextReviewAt), nextReview <= date else {
+                return .learning
+            }
+            return .due
+        }
+    }
 }
 
 struct WordInput: Sendable, Equatable {

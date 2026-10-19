@@ -6,6 +6,11 @@ LEXI_WEB_CSRF (matching web CSRF token). Run with --run to permit test writes.
 Creates two uniquely named words, verifies both auth modes/IDOR/settings sync,
 and cleans up in finally. No AI calls, retries, redirects or credential/body logs.
 Do not edit the same test account settings concurrently with this test.
+
+Alternative: --run --login prompts privately for account credentials, obtains
+temporary native/web sessions, and revokes them at exit. Add --single-account
+when only account A is available: IDOR checks are explicitly SKIPPED.
+Only LEXI_API_BASE_URL is required for --login.
 """
 import json
 import os
@@ -18,10 +23,12 @@ from smoke_api import NoRedirect, SmokeFailure, configuration
 
 
 class Client:
-    def __init__(self, base, headers):
+    def __init__(self, base, headers, opener=None, timeout=20):
         self.base = base
         self.headers = headers
-        self.opener = urllib.request.build_opener(NoRedirect())
+        self.opener = opener or urllib.request.build_opener(NoRedirect())
+        self.response_headers = None
+        self.timeout = timeout
 
     def request(self, method, path, body=None, accepted=(200,)):
         headers = {'Accept': 'application/json', **self.headers}
@@ -30,7 +37,7 @@ class Client:
         request = urllib.request.Request(self.base + path, method=method, headers=headers,
                                          data=None if body is None else json.dumps(body).encode())
         try:
-            response = self.opener.open(request, timeout=20)
+            response = self.opener.open(request, timeout=self.timeout)
         except urllib.error.HTTPError as error:
             if error.code in accepted:
                 # Expected 403/404 must not disclose word content. Never print the body.
@@ -38,15 +45,19 @@ class Client:
                 error.close()
                 try:
                     data = json.loads(raw)
-                    if isinstance(data, dict) and any(k in data for k in ('term', 'meaning', 'data')):
-                        raise SmokeFailure('Isolation response exposed unexpected data.')
+                    if (len(raw) > 2_000_000 or not isinstance(data, dict)
+                            or data.get('success') is not False or data.get('statusCode') != error.code
+                            or any(k in data for k in ('term', 'meaning', 'data'))):
+                        raise SmokeFailure('Expected denial did not match the safe API error contract.')
                 except (ValueError, TypeError):
-                    pass
+                    raise SmokeFailure('Expected API denial returned malformed data; cannot verify isolation.') from None
                 return None
+            error.close()
             raise SmokeFailure(f'Unexpected HTTP {error.code}; no retry performed.') from None
         except (urllib.error.URLError, TimeoutError, OSError):
             raise SmokeFailure('Network/TLS/timeout failure; write outcome may be uncertain.') from None
         with response:
+            self.response_headers = response.headers
             if response.status not in accepted:
                 raise SmokeFailure(f'Unexpected HTTP {response.status}.')
             raw = response.read(2_000_001)
@@ -64,13 +75,19 @@ def check(condition, message):
         raise SmokeFailure(message)
 
 
-def run(native, web, other):
+def run(native, web, other=None):
     a = native.request('GET', '/users/me')
     w = web.request('GET', '/users/me')
-    b = other.request('GET', '/users/me')
-    check(a['id'] == w['id'] and a['id'] != b['id'], 'Require web/native same user A and distinct user B.')
+    check(a['id'] == w['id'], 'Require web/native same user A.')
+    if other is not None:
+        b = other.request('GET', '/users/me')
+        check(a['id'] != b['id'], 'Require a distinct user B.')
     check(isinstance(a.get('setting'), dict), 'Test account A needs existing settings for reversible settings test.')
-    print('PASS same-account native/web and distinct account B')
+    print('PASS same-account native/web identity')
+    if other is not None:
+        print('PASS distinct account B identity')
+    else:
+        print('SKIP IOS-0630 account isolation: second test account not provided')
     original_goal = a['setting']['dailyGoal']
     marker = 'lexi-phase6-' + uuid.uuid4().hex
     terms = [marker + '-native', marker + '-web']
@@ -84,14 +101,17 @@ def run(native, web, other):
             check(visible['id'] == word['id'] and visible['term'] == term, 'Cross-client word differs.')
             page = reader.request('GET', '/words?' + urllib.parse.urlencode({'search': term}))
             check(any(item['id'] == word['id'] for item in page['items']), 'Created word missing from list.')
-            other.request('GET', path, accepted=(403, 404))
-            other.request('DELETE', path, accepted=(403, 404))
-            isolated = other.request('GET', '/words?' + urllib.parse.urlencode({'search': term}))
-            check(not isolated['items'], 'Account B can see account A test word.')
+            if other is not None:
+                other.request('GET', path, accepted=(403, 404))
+                other.request('DELETE', path, accepted=(403, 404))
+                isolated = other.request('GET', '/words?' + urllib.parse.urlencode({'search': term}))
+                check(not isolated['items'], 'Account B can see account A test word.')
             check(native.request('GET', path)['id'] == word['id'], 'Isolation test changed owner word.')
             check(deleter.request('DELETE', path).get('deleted') is True, 'Delete not acknowledged.')
             creator.request('GET', path, accepted=(404,))
-        print('PASS native/web CRUD in both directions; user B GET/list/DELETE isolation')
+        print('PASS native/web CRUD in both directions')
+        if other is not None:
+            print('PASS user B GET/list/DELETE isolation')
         temporary_goal = 11 if original_goal == 10 else 10
         settings_touched = True  # Also restore when PATCH times out after server commit.
         updated = native.request('PATCH', '/users/me/settings', {'dailyGoal': temporary_goal})
@@ -122,31 +142,44 @@ def run(native, web, other):
         print('PASS cleanup of synthetic words and restoration of test settings')
 
 
-def clients(environ):
+def clients(environ, single_account=False):
     base, token = configuration(environ)
-    names = ['LEXI_TEST_TOKEN_B', 'LEXI_WEB_COOKIE', 'LEXI_WEB_CSRF']
-    values = [environ.get(name, '') for name in names]
-    check(all(values) and all('\r' not in v and '\n' not in v for v in values),
-          'Configure user B token, matching user A web cookie and CSRF token via environment.')
-    check(token != values[0], 'User B requires a different account token.')
+    cookie, csrf = (environ.get(name, '') for name in ['LEXI_WEB_COOKIE', 'LEXI_WEB_CSRF'])
+    check(all([cookie, csrf]) and all('\r' not in v and '\n' not in v for v in [cookie, csrf]),
+          'Configure matching user A web cookie and CSRF token via environment.')
+    other = None
+    if not single_account:
+        _, token_b = configuration({**environ, 'LEXI_TEST_TOKEN': environ.get('LEXI_TEST_TOKEN_B', '')})
+        check(token != token_b, 'User B requires a different account token.')
+        other = Client(base, {'Authorization': 'Bearer ' + token_b})
     return (Client(base, {'Authorization': 'Bearer ' + token}),
-            Client(base, {'Cookie': values[1], 'X-CSRF-Token': values[2]}),
-            Client(base, {'Authorization': 'Bearer ' + values[0]}))
+            Client(base, {'Cookie': cookie, 'X-CSRF-Token': csrf}), other)
 
 
 def main():
     if sys.argv[1:] == ['--help']:
         print(__doc__)
         return 0
-    if sys.argv[1:] != ['--run']:
-        print('Usage: python3 scripts/smoke_phase6.py --run (writes test data; see --help)', file=sys.stderr)
+    flags = set(sys.argv[1:])
+    if '--run' not in flags or flags - {'--run', '--login', '--single-account'}:
+        print('Usage: python3 scripts/smoke_phase6.py --run [--login] [--single-account] (see --help)', file=sys.stderr)
         return 2
     try:
-        run(*clients(os.environ))
+        if '--login' in flags:
+            from phase6_session import login_clients
+            base, _ = configuration(os.environ, public_only=True)
+            with login_clients(base, single_account='--single-account' in flags) as authenticated:
+                run(*authenticated)
+        else:
+            run(*clients(os.environ, single_account='--single-account' in flags))
+        print('RESULT ' + ('PARTIAL PASS (account isolation not tested)' if '--single-account' in flags else 'PASS'))
         return 0
     except (SmokeFailure, KeyError, TypeError) as error:
         print(str(error) if isinstance(error, SmokeFailure) else 'Unexpected test response shape.', file=sys.stderr)
         return 1
+    except (KeyboardInterrupt, EOFError):
+        print('Stopped by user; inspect cleanup messages before rerunning.', file=sys.stderr)
+        return 130
 
 
 if __name__ == '__main__':

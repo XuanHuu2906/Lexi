@@ -10,14 +10,25 @@ enum LexiColors {
     static let coral400 = Color(hex: 0xFF6B5E)
     static let sun400 = Color(hex: 0xFFC93C)
     static let leaf500 = Color(hex: 0x2FB863)
+    static let cloud200 = Color(hex: 0xECEAF6)
+    static let grape700 = Color(hex: 0x422AA8)
+    static let sky100 = Color(hex: 0xDCEEFF)
+    static let sun100 = Color(hex: 0xFFF3CE)
+    static let coral50 = Color(hex: 0xFFEEEC)
+    static let leaf100 = Color(hex: 0xD9F7E4)
+    static let berry100 = Color(hex: 0xFFE0E4)
     static let surface = Color.white
     static let brandSoft = Color(hex: 0xF1ECFE)
     static let textSecondary = Color(hex: 0x524C6B)
     static let border = Color(hex: 0xDEDAEC)
+    static let borderSubtle = Color(hex: 0xECEAF3)
     // Darker semantic foregrounds keep small text readable on white.
     static let success = Color(hex: 0x176B3A)
     static let warning = Color(hex: 0x805700)
     static let error = Color(hex: 0xB7193C)
+    // Sky 600 / Coral 600 fall below 4.5:1 on the specified soft chip surfaces.
+    static let info = Color(hex: 0x155EAA)
+    static let due = Color(hex: 0xB92D22)
 }
 
 private extension Color {
@@ -49,8 +60,28 @@ enum LexiTypography {
     static let hero = Font.system(.largeTitle, design: .rounded, weight: .bold)
     static let title = Font.system(.title2, design: .rounded, weight: .bold)
     static let heading = Font.system(.headline, design: .rounded)
+    static let cardTitle = Font.system(.title3, design: .rounded, weight: .semibold)
+    static let word = Font.system(.largeTitle, design: .rounded, weight: .semibold)
+    static let bodyEmphasis = Font.system(.body, weight: .semibold)
+    static let label = Font.system(.subheadline, weight: .semibold)
+    static let secondary = Font.subheadline
+    static let phonetic = Font.system(.subheadline, design: .monospaced)
     static let body = Font.body
     static let caption = Font.footnote
+}
+
+extension View {
+    /// Preserve native Form/List controls while sharing the page surface and reading width.
+    func lexiFormStyle() -> some View {
+        self
+            .font(LexiTypography.body)
+            .environment(\.defaultMinListRowHeight, LexiSpacing.minHitTarget)
+            .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
+            .frame(maxWidth: LexiSpacing.readableWidth)
+            .frame(maxWidth: .infinity)
+            .background(LexiColors.cloud100)
+    }
 }
 
 struct LexiPage<Content: View>: View {

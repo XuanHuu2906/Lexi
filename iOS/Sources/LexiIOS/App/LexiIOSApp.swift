@@ -4,6 +4,7 @@ import SwiftUI
 @main
 struct LexiIOSApp: App {
     private let container = AppContainer.live()
+    init() { AudioTemporaryFiles.clearAbandoned() }
     var body: some Scene {
         WindowGroup {
             SessionRootView(container: container)

@@ -2,7 +2,17 @@
 
 App native SwiftUI iOS 17+, SwiftPM và xtool. Thư mục `iOS/` (đúng chữ hoa) là source-of-truth. Phase 3 đã hoàn tất. **Phase 4 đạt G3 ngày 18/10/2026:** backend native đã deploy; người dùng xác nhận iPhone đăng nhập bằng tài khoản web, tắt hẳn/mở lại giữ phiên, logout rồi login lại. **Phase 5 đã triển khai theme, auth UI và shell 5 tab; 58 Swift tests / 7 suites và iOS build pass.** Còn QA thiết bị/Dynamic Type/VoiceOver/screenshot để đóng gate; xem [trạng thái Phase 5](docs/ios-phase5-status.md) và [design spec](docs/ios-design.md). Các kịch bản mở rộng IOS-0434 tiếp tục được ghi ở [trạng thái Phase 4](docs/ios-phase4-status.md).
 
+**Mốc mới nhất — Phase 8, 19/10/2026:** Tab Học có Tutor, hỏi ngữ pháp, sổ ngữ pháp CRUD, Writing, Context và Conversation. **25/29 task có bằng chứng code/test hoặc xác nhận người dùng**; đã cài iPhone và người dùng xác nhận Tutor, Writing/hoàn tác, Conversation relaunch/resume/end. Exit gate còn mở: lỗi/background giữa request, web parity, cost và safety chưa nghiệm thu đầy đủ. Xem [trạng thái Phase 8](docs/ios-phase8-status.md) và [bằng chứng](docs/evidence/phase8-verification-2026-10-19.md).
+
+**Sửa Flashcards cùng ngày:** mỗi lượt tối đa 10 từ chưa hoàn thành trong vòng hiện tại, lưu ID hoàn thành theo API/account để mở lại tiếp tục; hết bộ có nút bắt đầu vòng mới. Đã cài bản sửa và người dùng xác nhận chuyển sang bộ từ khác trên iPhone. Xem [thay đổi và kiểm chứng](docs/evidence/flashcard-rounds-2026-10-19.md).
+
+**Phase 7:** Review, Flashcards và Quiz có **25/35 task code/test hoặc đề xuất**, đã cài lên iPhone 14 Plus; G4 vẫn chờ QA/sync. Xem [trạng thái Phase 7](docs/ios-phase7-status.md).
+
+**Phase 6:** Dashboard, Từ vựng, Tra từ và Cài đặt đã nối API; nay **23/32 task code/test** sau khi nối Dashboard → Review. Bản Phase 6 trước đã cài iPhone 14 Plus. Còn smoke staging, sync web–iPhone, VoiceOver và data isolation; xem [trạng thái Phase 6](docs/ios-phase6-status.md).
+
 ## Chạy từ WSL
+
+Đã đồng bộ giao diện các màn hiện có theo [design system từ web](docs/LEXI_IOS_DESIGN_SYSTEM_FROM_WEB.md); xem [phạm vi thay đổi](docs/ios-design-system-sync.md). Bản Phase 6 mới hơn đã được cài lên iPhone; QA trực quan vẫn đang chờ, theo [bằng chứng mới nhất](docs/evidence/phase6-verification-2026-10-19.md).
 
 Đã đối chiếu môi trường ngày 18/10/2026: Swift 6.4, Darwin SDK có trong `swift sdk list`. Package dựa trên template tạo bằng `xtool new LexiIOS --skip-setup`; giữ đúng một library product cho xtool. Toàn bộ source nằm trong một target; SwiftUI được điều kiện hóa để test phần core trên Linux.
 
@@ -181,6 +191,38 @@ chmod +x ~/deploy-lexi.sh
 
 sau đó chỉ cần chạy
 ~/deploy-lexi.sh
+
+chạy 1 phát ăn ngay:
+
+rtk proxy wsl -d LexiUbuntu -- bash -lc '
+set -e
+
+# 1. Nạp môi trường Swift + xtool
+source ~/.local/share/lexi-ios/env.sh
+
+# 2. Kết nối iPhone qua Windows
+export USBMUXD_SOCKET_ADDRESS=127.0.0.1:27015
+
+# 3. Đồng bộ code Windows sang WSL
+rsync -av --delete \
+  --exclude=".build/" \
+  --exclude="xtool/" \
+  --exclude=".git/" \
+  --exclude=".swiftpm/" \
+  /mnt/d/LearnEnglish/Lexi/iOS/ \
+  ~/projects/LexiIOS/LexiApp/
+
+# 4. Vào project trong WSL
+cd ~/projects/LexiIOS/LexiApp
+
+# 5. Kiểm tra iPhone
+timeout 15 ideviceinfo -k ProductType
+
+# 6. Build + ký + cài ứng dụng
+xtool dev
+'
+
+
 
 Nếu chạy xong bị timeout:
 Trong PowerShell Administrator, chạy:
