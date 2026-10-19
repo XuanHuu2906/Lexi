@@ -136,7 +136,7 @@ struct AccountCacheIsolationTests {
 
         await #expect(throws: HTTPError.unauthorized(nil)) {
             let _: EmptyResponse = try await client.send(
-                APIEndpoint(path: ["words"], retry: .never))
+                APIEndpoint(path: ["words"]))
         }
         for _ in 0..<2_000 {
             if model.message?.contains("Phiên đã kết thúc") == true { break }
