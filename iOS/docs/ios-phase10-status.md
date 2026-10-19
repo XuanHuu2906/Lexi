@@ -69,3 +69,12 @@ xtool dev
 **Azure Speech vẫn hoãn; APNs/Background Tasks và offline SRS mutation vẫn ngoài phạm vi.**
 
 - Khi server trả thiếu trang cuối, đổi tổng số trang bất ngờ hoặc lặp Word ID, `NotebookFlashcards.fetchNotebook` từ chối đánh dấu snapshot hoàn chỉnh; đã thêm test hồi quy. Không tuyên bố các test đã chạy trong môi trường user.
+
+
+## Khắc phục màn “Chưa thể mở phiên” khi mất Wi-Fi (PR riêng, 19/10/2026)
+
+- **Nguyên nhân đã xác định trong code:** `SessionViewModel.restore()` chạy khi app vào foreground, `/users/me` lỗi mạng thì `state=.unavailable` → `AppNavigation.reset()` → unmount màn học, có thể kéo theo cleanup nhầm cache. Đây là lỗi quản lý phiên, không phải Azure Speech và chưa chứng minh app bị crash.
+- **Có code sửa, chưa build/test iPhone:** giữ phiên đã xác thực trong RAM nếu chỉ lỗi mạng/timeout, đồng thời lưu `ApiMe` đã xác thực online trong **Keychain riêng, khóa theo backend**, tối đa 7 ngày. Cold start không mạng chỉ được mở read-only nếu thiết bị **vẫn có refresh credential** và profile Keychain hợp lệ. Không fallback cho 401/403/hết hạn/mất credential.
+- Màn offline chỉ mở Từ vựng/Flashcards cache, không phát lệnh AI/SRS hoặc chỉnh sửa server. Kết nối lại cần `/users/me` thành công; logout xóa bản profile Keychain và offline notebook. Có test phiên foreground, cold-start, revoked/expired credential, logout và cache-only zero HTTP.
+- **Phải nghiệm thu:** Cài build mới, mở Lexi **khi online ít nhất một lần** sau khi nâng cấp để lưu hồ sơ đã xác thực; sau đó bật Airplane mode + tắt Wi-Fi/cellular, thử rời app/quay lại và force-quit mở mới; vào Offline Flashcards, rồi bật mạng và xác nhận `Kết nối lại` khôi phục đủ tab. Xem [chi tiết khắc phục](phase10-offline-session-recovery.md).
+- Test/build và iPhone QA của bản sửa này **chưa chạy trong phiên connector**; không cập nhật trạng thái PASS cho Phase 10 từ riêng code.
