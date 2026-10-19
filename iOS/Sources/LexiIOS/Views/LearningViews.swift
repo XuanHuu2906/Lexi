@@ -162,6 +162,11 @@ struct WordListView: View {
                     }
                 }
                 if model.phase == .loading { ProgressView("Đang tải sổ từ…") }
+                if model.isOffline && model.items.isEmpty {
+                    EmptyState(title: "Không có từ phù hợp trong bản đã tải",
+                               message: "Thử đổi bộ lọc hoặc kết nối mạng để cập nhật sổ từ.",
+                               symbol: "wifi.slash")
+                }
                 if model.phase == .empty {
                     EmptyState(title: "Chưa có từ phù hợp", message: "Thử thay đổi bộ lọc hoặc thêm một từ mới.", symbol: "books.vertical")
                     NavigationLink { LookupView(api: api, session: session, changed: changed) } label: {
