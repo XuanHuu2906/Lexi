@@ -88,7 +88,7 @@ struct NavigationTests {
         #expect(model.navigation.selectedTab == .home)
     }
 
-    @Test func offlineRestorationDropsPersonalUIAndRetriesIntoFreshShell() async throws {
+    @Test func offlineForegroundPreservesVerifiedAccountAndRevalidatesOnReconnect() async throws {
         let auth = AuthDouble(), store = MemoryKeychain(String(repeating: "a", count: 64))
         let session = SessionActor(auth: auth, store: store)
         let transport = MockTransport([.response(200, try Fixtures.body("user_with_relations")),
@@ -97,16 +97,21 @@ struct NavigationTests {
         let model = try fixture(session: session, transport: transport)
         await model.restore()
         let identity = model.navigation.generation
+        let accountID = model.navigation.ownerID
         model.navigation.paths[.learn] = [.tutor]
         await model.restore(force: true)
-        if case .unavailable = model.state {} else { Issue.record("Offline restore must offer retry") }
-        #expect(model.navigation.paths.isEmpty)
-        #expect(model.navigation.ownerID == nil)
+        if case .authenticated = model.state {} else { Issue.record("Offline should keep verified session") }
+        #expect(model.offlineSession)
+        #expect(model.navigation.generation == identity)
+        #expect(model.navigation.ownerID == accountID)
+        #expect(model.navigation.selectedTab == .vocabulary)
+        #expect(model.navigation.paths.isEmpty) // Hide network-backed destinations.
         #expect(try store.read() != nil)
         await model.restore(force: true)
-        if case .authenticated = model.state {} else { Issue.record("Retry must restore the shell") }
-        #expect(model.navigation.generation != identity)
-        #expect(model.navigation.paths.isEmpty)
+        if case .authenticated = model.state {} else { Issue.record("Reconnect must restore online session") }
+        #expect(!model.offlineSession)
+        #expect(model.navigation.generation == identity)
+        #expect(model.navigation.ownerID == accountID)
     }
 
     @Test func accountChangeAndSameAccountReloginDiscardPreviousNavigation() {
