@@ -77,7 +77,13 @@ final class AIRequestGate {
                 feedback = FeatureFeedback(message: "Đã dừng chờ. Nội dung nhập vẫn còn; yêu cầu trước có thể vẫn được xử lý. Lexi không tự gửi lại.")
             } else if case .notFound = error as? HTTPError {
                 feedback = FeatureFeedback(message: "Nội dung này không còn tồn tại hoặc bạn không có quyền truy cập.")
-            } else { feedback = FeatureFeedback(error, mutation: action.usesAI || action == .grammarSave || action == .grammarDelete) }
+            } else {
+                feedback = FeatureFeedback(
+                    error,
+                    mutation: action.usesAI || action == .grammarSave || action == .grammarDelete,
+                    context: action == .pronunciation ? .pronunciation : .general
+                )
+            }
             return nil
         }
     }
