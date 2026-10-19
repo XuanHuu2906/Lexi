@@ -185,6 +185,7 @@ final class SessionViewModel {
     }
 
     func logout() async {
+        guard !busy else { return }
         pendingLookup = nil
         let accountID: String?
         if case .authenticated(let me) = state { accountID = me.id }
