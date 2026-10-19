@@ -24,6 +24,7 @@ final class SessionViewModel {
     private let offlineCacheDirectory: URL?
     private let checkpointDefaults: UserDefaults
     private var activeNotebook: (owner: String, cache: OfflineNotebookCache)?
+    private var activeFeatureCleanup: (owner: String, action: @MainActor () -> Void)?
     private var operation = UUID()
     private var profileSessionID: UUID?
     private var lastCheck: Date?
@@ -45,9 +46,19 @@ final class SessionViewModel {
         activeNotebook = (userID, cache)
     }
 
+    func registerFeatureCleanup(userID: String, action: @escaping @MainActor () -> Void) {
+        guard navigation.ownerID == userID else { return }
+        activeFeatureCleanup = (userID, action)
+    }
+
     /// Failure is visible to the caller. Do not claim that logout removed
     /// private data when iOS file protection or disk errors prevented it.
     private func purgePersonalData(ownerID: String?) async -> Bool {
+        // Stop all personal mutation pipelines before deleting their checkpoints.
+        if let activeFeatureCleanup {
+            self.activeFeatureCleanup = nil
+            activeFeatureCleanup.action()
+        }
         var succeeded = true
         if let activeNotebook {
             self.activeNotebook = nil
