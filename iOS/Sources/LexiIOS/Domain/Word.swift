@@ -37,7 +37,7 @@ struct BackendWordDTO: Decodable, Sendable, Equatable {
     }
 }
 
-struct Word: Sendable, Equatable, Identifiable {
+struct Word: Codable, Sendable, Equatable, Identifiable {
     let id: String
     let word: String
     let meaning: String
