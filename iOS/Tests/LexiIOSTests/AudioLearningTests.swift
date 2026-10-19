@@ -195,6 +195,53 @@ private actor AudioStub: AudioLearningServing {
 
 @Suite @MainActor
 struct AudioFeatureTests {
+    @Test func pronunciationFailureExplainsHTTPStatusWithoutDisplayingProviderPayload() {
+        let privatePayload = APIErrorPayload(
+            success: false, statusCode: 503,
+            message: .text("PRIVATE-PROVIDER-DETAIL synthetic only"),
+            error: "Service Unavailable", path: "/pronunciation/score",
+            timestamp: "2026-10-19T09:22:00Z"
+        )
+        let unavailable = FeatureFeedback(HTTPError.server(503, privatePayload),
+                                          mutation: true, context: .pronunciation).message
+        #expect(unavailable.contains("503"))
+        #expect(unavailable.contains("Azure Speech"))
+        #expect(!unavailable.contains("PRIVATE-PROVIDER-DETAIL"))
+        #expect(!unavailable.contains("đã được lưu"))
+        #expect(FeatureFeedback(HTTPError.validation(422, nil), context: .pronunciation)
+            .message.contains("422"))
+        #expect(FeatureFeedback(HTTPError.unexpectedStatus(413, nil), context: .pronunciation)
+            .message.contains("413"))
+        #expect(FeatureFeedback(HTTPError.server(502, nil), context: .pronunciation)
+            .message.contains("502"))
+        #expect(FeatureFeedback(HTTPError.decoding, context: .pronunciation)
+            .message.contains("định dạng API"))
+        #expect(FeatureFeedback(HTTPError.timeout, context: .pronunciation)
+            .message.contains("không tự gửi lại"))
+        #expect(FeatureFeedback(AudioFailure.invalidWAV, context: .pronunciation)
+            .message == AudioFailure.invalidWAV.message)
+        // Unrelated features must retain their existing generic error semantics.
+        #expect(FeatureFeedback(HTTPError.server(503, nil), mutation: true)
+            .message.contains("đã được lưu"))
+    }
+
+    @Test func pronunciation503RetainsAudioAndDoesNotAutomaticallyReupload() async throws {
+        let clip = try testClip(); defer { AudioTemporaryFiles.remove(clip.file) }
+        let api = AudioStub()
+        await api.configure(error: .server(503, nil))
+        let model = PronunciationViewModel(api: api, permission: PermissionStub(),
+                                           recorder: RecorderStub(clip))
+        await model.record(); model.stop()
+        await model.submit()
+        #expect(model.request.state == .serverError)
+        #expect(model.request.feedback?.message.contains("HTTP 503") == true)
+        #expect(model.clip != nil && model.canSubmit)
+        #expect(model.notice == nil) // no second generic banner
+        #expect(await api.scores == 1)
+        model.deactivate()
+        #expect(!FileManager.default.fileExists(atPath: clip.file.path))
+    }
+
     @Test func permissionIsRequestedOnlyForRecordAndDenialNeverStartsOrUploads() async throws {
         let clip = try testClip(); defer { AudioTemporaryFiles.remove(clip.file) }
         let permission = PermissionStub(); permission.allowed = false
