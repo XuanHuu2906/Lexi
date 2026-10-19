@@ -64,18 +64,21 @@ final class WordListViewModel {
             phase = items.isEmpty ? .empty : .loaded
         } catch {
             guard operation == id, !isCancellation(error) else { return }
-            if NotebookFlashcards.isConnectivityFailure(error),
-               let snapshot = await cache?.load(), operation == id, query == requested {
-                offlineWords = OfflineNotebookQuery.filter(snapshot.words, query: requested)
-                items = Array(offlineWords.prefix(requested.limit))
-                total = offlineWords.count
-                page = 1
-                isOffline = true; offlineSavedAt = snapshot.savedAt
-                feedback = nil
-                phase = .stale
-            } else {
-                feedback = FeatureFeedback(error); phase = items.isEmpty ? .failed : .stale
+            if NotebookFlashcards.isConnectivityFailure(error) {
+                let snapshot = await cache?.load()
+                guard operation == id, query == requested else { return }
+                if let snapshot {
+                    offlineWords = OfflineNotebookQuery.filter(snapshot.words, query: requested)
+                    items = Array(offlineWords.prefix(requested.limit))
+                    total = offlineWords.count
+                    page = 1
+                    isOffline = true; offlineSavedAt = snapshot.savedAt
+                    feedback = nil
+                    phase = .stale
+                    return
+                }
             }
+            feedback = FeatureFeedback(error); phase = items.isEmpty ? .failed : .stale
         }
     }
 
