@@ -88,7 +88,7 @@ final class WordListViewModel {
         savingOffline = true; offlineMessage = nil
         defer { savingOffline = false }
         do {
-            let words = try await notebook.fetchNotebook()
+            let words = try await notebook.fetchNotebook(maxWords: OfflineNotebookCache.maximumWords)
             try Task.checkCancellation()
             try await cache.save(words)
             offlineMessage = "Đã lưu \(words.count) từ để xem offline trên iPhone này."
