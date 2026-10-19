@@ -117,6 +117,18 @@ struct WordListView: View {
                     Label("Tra từ điển", systemImage: "magnifyingglass")
                 }
                 Button { quickAdd = true } label: { Label("Thêm nhanh từ: nghĩa", systemImage: "sparkles") }
+                    .disabled(model.isOffline)
+                if !model.isOffline {
+                    Button {
+                        Task { await model.saveForOffline() }
+                    } label: {
+                        if model.savingOffline { ProgressView("Đang lưu sổ từ offline…") }
+                        else { Label("Lưu sổ từ để xem offline", systemImage: "arrow.down.to.line") }
+                    }.disabled(model.savingOffline)
+                }
+                if let message = model.offlineMessage {
+                    Text(message).font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
+                }
             }
             if filters {
                 Section("Bộ lọc") {
@@ -136,10 +148,18 @@ struct WordListView: View {
                 }
             }
             if let feedback = model.feedback { FeatureErrorView(feedback: feedback) { attempt += 1 } }
-            if model.phase == .stale { FeedbackNotice(message: "Dữ liệu lần tải trước. Kéo xuống để cập nhật.", symbol: "arrow.clockwise") }
+            if model.isOffline {
+                FeedbackNotice(message: "Đang xem sổ từ đã tải trên iPhone (offline, chỉ đọc). Dữ liệu có thể cũ; không phản ánh lịch ôn hiện tại. Kết nối mạng rồi kéo xuống để đồng bộ.", symbol: "wifi.slash")
+            } else if model.phase == .stale {
+                FeedbackNotice(message: "Dữ liệu lần tải trước. Kéo xuống để cập nhật.", symbol: "arrow.clockwise")
+            }
             Section("\(model.total) từ") {
                 ForEach(model.items) { word in
-                    NavigationLink(value: AppRoute.word(id: word.id)) { WordRow(word: word) }
+                    if model.isOffline {
+                        WordRow(word: word, offline: true)
+                    } else {
+                        NavigationLink(value: AppRoute.word(id: word.id)) { WordRow(word: word) }
+                    }
                 }
                 if model.phase == .loading { ProgressView("Đang tải sổ từ…") }
                 if model.phase == .empty {
@@ -151,7 +171,7 @@ struct WordListView: View {
                 if model.hasMore {
                     Button { Task { await model.nextPage() } } label: {
                         if model.loadingMore { ProgressView("Đang tải thêm…") } else { Text("Tải thêm") }
-                    }.disabled(model.loadingMore || model.phase != .loaded)
+                    }.disabled(model.loadingMore || (model.phase != .loaded && !model.isOffline))
                 }
             }
         }
@@ -164,6 +184,7 @@ struct WordListView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { add = true } label: { Label("Thêm từ", systemImage: "plus") }
+                    .disabled(model.isOffline)
             }
         }
         .refreshable { await model.refresh() }
@@ -178,6 +199,7 @@ struct WordListView: View {
 struct WordRow: View {
     let word: Word
     var prominent = false
+    var offline = false
     var body: some View {
         VStack(alignment: .leading, spacing: LexiSpacing.sm) {
             Text(word.word).font(prominent ? LexiTypography.word : LexiTypography.heading)
@@ -185,8 +207,10 @@ struct WordRow: View {
             if let phonetic = word.phonetic?.nonempty { PhoneticText(value: phonetic) }
             if let pos = word.pos?.nonempty { BadgeChip(title: pos, symbol: "textformat") }
             Text(word.meaning).font(LexiTypography.body).fixedSize(horizontal: false, vertical: true)
-            TimelineView(.periodic(from: .now, by: 60)) { context in
-                WordStatusChip(status: word.displayStatus(at: context.date))
+            if !offline {
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    WordStatusChip(status: word.displayStatus(at: context.date))
+                }
             }
             if let topic = word.topic?.nonempty {
                 Text(topic).font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
