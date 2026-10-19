@@ -134,6 +134,8 @@ final class SessionViewModel {
             return
         }
         let id = UUID(); operation = id
+        busy = true; message = nil
+        defer { if operation == id { busy = false } }
         // An old offline profile must not survive an account switch even if
         // a Keychain write or delete fails: refuse login until cleanup works.
         do { try offlineProfile?.clear() }
@@ -146,9 +148,9 @@ final class SessionViewModel {
             message = "Chưa dọn được dữ liệu phiên cũ trên iPhone. Mở khóa thiết bị rồi thử đăng nhập lại."
             return
         }
+        guard operation == id else { return }
         profileSessionID = nil; offlineSession = false
-        state = .signedOut; busy = true; message = nil
-        defer { if operation == id { busy = false } }
+        state = .signedOut
         do {
             try await session.signIn(MobileCredentials(email: email, password: password), register: register)
             guard operation == id else { return }
