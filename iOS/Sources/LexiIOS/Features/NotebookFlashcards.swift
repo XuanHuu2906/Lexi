@@ -41,6 +41,7 @@ struct NotebookFlashcards: FlashcardServing {
     func fetchNotebook(maxWords: Int? = nil) async throws -> [Word] {
         var all: [Word] = []
         var ids = Set<String>()
+        var expectedTotal: Int?
         var query = WordsQuery(sort: .oldest, limit: 100)
         while true {
             try Task.checkCancellation()
@@ -48,6 +49,8 @@ struct NotebookFlashcards: FlashcardServing {
             try Task.checkCancellation()
             guard page.page == query.page, page.limit == query.limit, page.total >= 0,
                   page.items.count <= query.limit else { throw HTTPError.invalidResponse }
+            if let expectedTotal, page.total != expectedTotal { throw HTTPError.invalidResponse }
+            expectedTotal = page.total
             if let maxWords, page.total > maxWords { throw OfflineNotebookCache.CacheFailure.tooLarge }
             let fresh = page.items.filter { ids.insert($0.id).inserted }
             all += fresh
@@ -57,6 +60,9 @@ struct NotebookFlashcards: FlashcardServing {
             guard !fresh.isEmpty else { throw HTTPError.invalidResponse }
             query.page += 1
         }
+        // A server returning an empty/short last page must not quietly promote
+        // 100 of 125 words into a "complete" offline snapshot.
+        guard all.count == expectedTotal else { throw HTTPError.invalidResponse }
         return all
     }
 
