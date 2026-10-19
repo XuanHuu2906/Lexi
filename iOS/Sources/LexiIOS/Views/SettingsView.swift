@@ -135,7 +135,9 @@ struct SettingsView: View {
         .confirmationDialog("Bỏ thay đổi chưa lưu và tải lại?", isPresented: $confirmingReload, titleVisibility: .visible) {
             Button("Bỏ thay đổi và tải lại", role: .destructive) { Task {
                 await model.load(discardChanges: true)
-                if model.loaded { await reminders.reconcile(userID: userID, draft: model.baseline) }
+                if session.navigation.ownerID == userID && model.loaded {
+                    await reminders.reconcile(userID: userID, draft: model.baseline)
+                }
             } }
             Button("Hủy", role: .cancel) {}
         }
