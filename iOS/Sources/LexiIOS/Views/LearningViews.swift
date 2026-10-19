@@ -115,7 +115,7 @@ struct WordListView: View {
             Section {
                 NavigationLink { LookupView(api: api, session: session, changed: changed) } label: {
                     Label("Tra từ điển", systemImage: "magnifyingglass")
-                }
+                }.disabled(model.isOffline)
                 Button { quickAdd = true } label: { Label("Thêm nhanh từ: nghĩa", systemImage: "sparkles") }
                     .disabled(model.isOffline)
                 if !model.isOffline {
