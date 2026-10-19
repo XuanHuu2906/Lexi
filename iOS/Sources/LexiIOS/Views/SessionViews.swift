@@ -21,8 +21,8 @@ struct SessionRootView: View {
         .overlay {
             if scenePhase != .active {
                 ZStack {
-                    Color(.systemBackground).ignoresSafeArea()
-                    Label("Lexi", systemImage: "lock.fill").font(.largeTitle.bold())
+                    LexiColors.cloud100.ignoresSafeArea()
+                    Label("Lexi", systemImage: "lock.fill").font(LexiTypography.hero)
                 }
                 .accessibilityAddTraits(.isModal)
             }
@@ -67,14 +67,14 @@ struct LoginView: View {
             Text(registering ? "Bắt đầu hành trình của bạn." : "Chào mừng bạn trở lại.")
                 .font(LexiTypography.title).accessibilityAddTraits(.isHeader)
             LexiCard {
-                LexiInput(title: "Email") {
+                LexiInput(title: "Email", isFocused: focus == .email) {
                     TextField("Email", text: $email)
                         .keyboardType(.emailAddress).textContentType(.username)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                         .focused($focus, equals: .email).submitLabel(.next)
                         .onSubmit { focus = .password }
                 }
-                LexiInput(title: "Mật khẩu") {
+                LexiInput(title: "Mật khẩu", isFocused: focus == .password) {
                     SecureField("Mật khẩu", text: $password)
                         .textContentType(registering ? .newPassword : .password)
                         .focused($focus, equals: .password).submitLabel(.go)

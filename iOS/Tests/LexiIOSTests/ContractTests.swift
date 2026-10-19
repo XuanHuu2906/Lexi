@@ -94,6 +94,23 @@ struct ContractTests {
         #expect(!String(decoding: encoded, as: UTF8.self).contains("null"))
     }
 
+    @Test func displayStatusUsesReviewDateWithoutChangingTransportStatus() throws {
+        let now = try #require(APIDate.parse("2026-10-18T12:00:00Z"))
+        func word(_ status: WordStatus, _ nextReview: String?) -> Word {
+            Word(id: "display", word: "learn", meaning: "học", phonetic: nil, pos: nil,
+                 status: status, topic: nil, examples: [], synonyms: [], antonyms: [], note: nil,
+                 createdAt: "", nextReviewAt: nextReview)
+        }
+        #expect(word(.due, "2026-10-18T12:00:00Z").displayStatus(at: now) == .due)
+        #expect(word(.due, "2026-10-18T19:00:00+07:00").displayStatus(at: now) == .due)
+        #expect(word(.due, "2026-10-19T12:00:00Z").displayStatus(at: now) == .learning)
+        #expect(word(.due, nil).displayStatus(at: now) == .learning)
+        #expect(word(.due, "invalid").displayStatus(at: now) == .learning)
+        #expect(word(.new, "2026-10-17T12:00:00Z").displayStatus(at: now) == .new)
+        #expect(word(.learned, "2026-10-17T12:00:00Z").displayStatus(at: now) == .mastered)
+        #expect(word(.due, "2026-10-19T12:00:00Z").status == .due)
+    }
+
     @Test func quizPreservesMissingNullAndAnswered() throws {
         let generated = try Fixtures.decode(GeneratedQuiz.self, "quiz_generated")
         let resumed = try Fixtures.decode(QuizState.self, "quiz_in_progress")

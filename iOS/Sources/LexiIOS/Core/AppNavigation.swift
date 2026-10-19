@@ -27,7 +27,9 @@ enum MainTab: String, CaseIterable, Hashable, Sendable {
 
 // IDs only: never put a profile, token, or word payload in navigation history.
 enum AppRoute: Hashable, Sendable {
-    case word(id: String), quiz(id: String), flashcards, tutor, about
+    case word(id: String), quiz(id: String), quizHome, flashcards, tutor, about
+    case grammarQA, grammarLibrary, grammarRule(id: String), writing, context, conversation
+    case pronunciation, dictation
 }
 
 @MainActor @Observable

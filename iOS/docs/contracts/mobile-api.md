@@ -53,6 +53,7 @@ Tất cả response dưới đây là phần `data`; response đầy đủ có e
 | GET `/review/flashcards` | mode guess/listen/fill/match; scope due/today; limit mặc định 10, 1–50 | `{mode,scope,count,cards}`; guess/listen có options + answerIndex; fill có cloze nullable; match cần ≥4 từ |
 | POST `/quiz/generate` | `{count?}` mặc định 10, 4–20; cần ≥4 saved words | `{quizId,total,questions}`; questions có index/term/question/options, không đáp án; cập nhật quizzedInCycle và tạo quiz |
 | GET `/quiz/:id` | ownership | `{quizId,total,score,status,questions}`; userAnswer nullable; answerIndex/explanation chỉ khi COMPLETED |
+| GET `/quiz/latest` | authenticated user, source local Phase 7; chưa xác minh deploy | `{quiz:QuizState|null}`, mới nhất theo createdAt/id; ownership và hiding answers giống `/quiz/:id` |
 | PATCH `/quiz/:id/progress` | `{answers:number[]}` | `{saved:true}`; hoàn tất rồi trả 400 |
 | POST `/quiz/submit` | `{quizId,answers:number[]}`, -1 chưa trả lời | `{quizId,score,total,results}`; mỗi result: index/correct/yourAnswer/answerIndex/explanation; hoàn tất rồi 400 |
 | GET `/stats/overview` | period all/week/month, mặc định all | `{period,totalWords,mastered,learning,new,retentionRate,reviewsCount,activeDays,quizzes:{count,avgScorePercent}}`; word counts toàn bộ, review/quiz theo kỳ |
@@ -80,7 +81,8 @@ Khác biệt cần giữ trong baseline và mở issue riêng:
 - Flashcards scope due là **due-first pool**, không phải chỉ các từ đang due; scope today có thể trả hơn limit và fallback due nếu không có từ hôm nay.
 - Streak dùng ngày UTC; distinct wordId từ reviewLog tính dailyGoal; không lấy ngày thiết bị hay mặc định settings timezone để tính lại.
 - GET streak có side effect: không tự polling/retry vô hạn. Nhánh streak-freeze khi chưa đạt goal cần regression về gọi lặp, vì lastActiveDate không đổi trong nhánh đó.
-- Review ghi trong transaction nhưng đọc SRS trước transaction; concurrent submits và timeout/retry chưa an toàn. Quiz submit cũng chưa có atomic compare-and-swap/idempotency.
+- Review ghi trong transaction nhưng đọc SRS trước transaction; concurrent submits và timeout/retry chưa an toàn. Xem [đề xuất idempotency](../phase7-review-idempotency.md), chưa triển khai.
+- **Cập nhật source local Phase 7:** Quiz progress/submit dùng conditional `updateMany` với userId + status IN_PROGRESS; chỉ một submit có thể hoàn tất, PATCH muộn không ghi đè completed answers. Có unit tests nhưng chưa xác minh deployment/DB integration. Không coi đây là idempotency cho generate/review; submit lặp vẫn trả 400 và client GET đối soát.
 
 ## 5. Native auth — đã triển khai Phase 4
 

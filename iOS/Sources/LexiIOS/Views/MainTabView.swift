@@ -7,11 +7,19 @@ struct MainTabView: View {
     @Bindable var navigation: AppNavigation
     let api: LexiAPI
     @State private var features: LearningFeatures
+    @State private var study: StudyFeatures
+    @State private var ai: AIFeatures
+    @State private var audio: AudioFeatures
+    @Environment(\.scenePhase) private var scenePhase
     @State private var savingLookup = false
 
     init(model: SessionViewModel, me: ApiMe, navigation: AppNavigation, api: LexiAPI) {
         self.model = model; self.me = me; self.navigation = navigation; self.api = api
-        _features = State(initialValue: LearningFeatures(api: api))
+        let features = LearningFeatures(api: api)
+        _features = State(initialValue: features)
+        _study = State(initialValue: StudyFeatures(api: api, userID: me.id, changed: features.invalidate))
+        _ai = State(initialValue: AIFeatures(api: api, userID: me.id))
+        _audio = State(initialValue: AudioFeatures(api: api))
     }
 
     var body: some View {
@@ -28,6 +36,13 @@ struct MainTabView: View {
         }
         .privacySensitive()
         .task { savingLookup = model.pendingLookup != nil }
+        .onDisappear {
+            audio.deactivate()
+            if case .signedOut = model.state { study.deactivate(clear: true); ai.deactivate(clear: true) }
+            else { study.deactivate(clear: false); ai.deactivate(clear: false) }
+        }
+        .onChange(of: scenePhase) { _, phase in if phase != .active { ai.suspend() } }
+        .onChange(of: scenePhase) { _, phase in if phase == .background { audio.suspend() } }
         .sheet(isPresented: $savingLookup, onDismiss: { model.pendingLookup = nil }) {
             if let input = model.pendingLookup {
                 AddWordSheet(api: api.words, input: input, changed: features.invalidate)
@@ -38,6 +53,9 @@ struct MainTabView: View {
     private func path(for tab: MainTab) -> Binding<[AppRoute]> {
         Binding(get: { navigation.paths[tab, default: []] }, set: { navigation.paths[tab] = $0 })
     }
+    private var audioLocale: String {
+        (features.settings.loaded ? features.settings.draft.ttsVoice : me.setting?.ttsVoice ?? .enUS).localeIdentifier
+    }
 
     @ViewBuilder private func page(for tab: MainTab) -> some View {
         switch tab {
@@ -46,29 +64,10 @@ struct MainTabView: View {
         case .vocabulary:
             WordListView(model: features.words, api: api.words, session: model, revision: features.revision, changed: features.invalidate)
         case .review:
-            LexiPage {
-                if let data = features.dashboard.snapshot {
-                    LexiCard {
-                        Text("\(data.due.total) từ đến hạn ôn").font(LexiTypography.title)
-                        if features.dashboard.phase == .stale || features.dashboard.phase == .loading {
-                            Text("Số liệu lần tải trước; mở Trang chủ để cập nhật.").font(.caption)
-                        }
-                    }
-                }
-                LexiCard {
-                    EmptyState(title: "Ôn một chút, nhớ lâu hơn", message: "Lịch ôn và bài kiểm tra sẽ được kết nối trong bản cập nhật tiếp theo.", symbol: tab.symbol)
-                    NavigationLink(value: AppRoute.flashcards) { Label("Khám phá thẻ ghi nhớ", systemImage: "rectangle.on.rectangle") }
-                        .buttonStyle(LexiButtonStyle(variant: .secondary))
-                }
-            }
+            ReviewView(model: study.review, navigation: navigation,
+                       locale: audioLocale)
         case .learn:
-            LexiPage {
-                LexiCard {
-                    EmptyState(title: "Học theo cách của bạn", message: "Luyện hội thoại, viết và phát âm cùng Lexi đang được chuẩn bị.", symbol: tab.symbol)
-                    NavigationLink(value: AppRoute.tutor) { Label("Tìm hiểu gia sư Lexi", systemImage: "bubble.left") }
-                        .buttonStyle(LexiButtonStyle(variant: .secondary))
-                }
-            }
+            LearnHomeView()
         case .settings: SettingsView(model: features.settings, session: model, email: me.email, changed: features.invalidate)
         }
     }
@@ -76,16 +75,31 @@ struct MainTabView: View {
     @ViewBuilder private func destination(_ route: AppRoute) -> some View {
         switch route {
         case .word(let id):
-            WordDetailView(id: id, api: api.words, changed: features.invalidate)
-        case .quiz:
-            FeaturePlaceholder(title: "Bài kiểm tra", message: "Bài kiểm tra đang được chuẩn bị.", symbol: "questionmark.circle")
-                .navigationTitle("Bài kiểm tra")
+            WordDetailView(id: id, api: api.words, locale: audioLocale, changed: features.invalidate)
+        case .quizHome:
+            QuizView(model: study.quiz)
+        case .quiz(let id):
+            QuizView(model: study.quiz, requestedID: id)
         case .flashcards:
-            FeaturePlaceholder(title: "Thẻ ghi nhớ", message: "Ôn tập hai mặt thẻ từ sổ từ của bạn. Tính năng này đang được chuẩn bị.", symbol: "rectangle.on.rectangle")
-                .navigationTitle("Thẻ ghi nhớ")
+            FlashcardsView(model: study.flashcards, locale: audioLocale)
         case .tutor:
-            FeaturePlaceholder(title: "Gia sư Lexi", message: "Luyện tiếng Anh qua trò chuyện và giải thích theo trình độ của bạn. Tính năng này đang được chuẩn bị.", symbol: "bubble.left.and.bubble.right")
-                .navigationTitle("Gia sư Lexi")
+            TutorChatView(model: ai.tutor, api: api.words, grammar: ai.grammar, changed: features.invalidate)
+        case .grammarQA:
+            TutorChatView(model: ai.grammarQA, api: api.words, grammar: ai.grammar, changed: features.invalidate)
+        case .grammarLibrary:
+            GrammarListView(model: ai.grammar)
+        case .grammarRule(let id):
+            GrammarDetailView(model: ai.grammar, id: id)
+        case .writing:
+            WritingView(model: ai.writing)
+        case .context:
+            ContextAnalysisView(model: ai.context, api: api.words, changed: features.invalidate)
+        case .conversation:
+            ConversationView(model: ai.conversation)
+        case .pronunciation:
+            PronunciationView(model: audio.pronunciation, locale: audioLocale)
+        case .dictation:
+            DictationView(model: audio.dictation, locale: audioLocale)
         case .about:
             LexiPage {
                 LexiCard {
@@ -96,15 +110,6 @@ struct MainTabView: View {
                 }
             }.navigationTitle("Về Lexi")
         }
-    }
-}
-
-private struct FeaturePlaceholder: View {
-    let title: String
-    let message: String
-    let symbol: String
-    var body: some View {
-        LexiPage { LexiCard { EmptyState(title: title, message: message, symbol: symbol) } }
     }
 }
 

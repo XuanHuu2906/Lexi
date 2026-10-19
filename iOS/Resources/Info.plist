@@ -8,6 +8,7 @@
     <key>LexiBuildFlavor</key><string>development</string>
     <key>LexiAPIBaseURL</key><string>https://lexi-backend-tf32.onrender.com</string>
     <key>UIUserInterfaceStyle</key><string>Light</string>
+    <key>NSMicrophoneUsageDescription</key><string>Lexi dùng micro khi bạn bấm Ghi âm để luyện phát âm. Bản ghi chỉ được gửi chấm khi bạn xác nhận.</string>
     <key>UISupportedInterfaceOrientations</key>
     <array><string>UIInterfaceOrientationPortrait</string></array>
 </dict>

@@ -13,10 +13,10 @@ struct WelcomeView: View {
                     Image(systemName: "character.book.closed.fill")
                         .font(.system(size: markSize)).foregroundStyle(LexiColors.grape500)
                         .accessibilityHidden(true)
-                    VStack(spacing: 8) {
+                    VStack(spacing: LexiSpacing.sm) {
                         Text("Lexi").font(LexiTypography.hero).accessibilityAddTraits(.isHeader)
                         Text("Mỗi ngày một chút, tiếng Anh tiến xa.")
-                            .font(.title3).multilineTextAlignment(.center)
+                            .font(LexiTypography.cardTitle).multilineTextAlignment(.center)
                     }
                     LexiCard {
                         if let health = container.health {
@@ -33,7 +33,7 @@ struct WelcomeView: View {
                         NavigationLink("Đăng nhập") { LoginView(model: session) }
                             .buttonStyle(LexiButtonStyle(variant: .primary))
                         if let message = session.message {
-                            Text(message).font(.callout).multilineTextAlignment(.center)
+                            FeedbackNotice(message: message)
                         }
                     }
                     Text("Bản phát triển").font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
@@ -45,7 +45,7 @@ struct WelcomeView: View {
     }
 
     @ViewBuilder private func healthStatus(_ model: HealthViewModel) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: LexiSpacing.lg) {
             switch model.state {
             case .idle, .loading: LoadingState(title: "Đang kiểm tra kết nối…")
             case .reachable:
@@ -67,10 +67,10 @@ struct WelcomeView: View {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let until = retryDate(model)
                     let waiting = until.map { $0 > context.date } ?? false
-                    VStack(spacing: 8) {
+                    VStack(spacing: LexiSpacing.sm) {
                         if waiting, let until {
                             Text("Thử lại sau \(until.timeIntervalSince(context.date).rounded(.up).formatted(.number.precision(.fractionLength(0)))) giây.")
-                                .font(.footnote)
+                                .font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
                         }
                         LexiButton(title: "Kiểm tra lại", variant: .secondary, isDisabled: waiting) { attempt += 1 }
                     }

@@ -692,6 +692,8 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 
 # PHASE 6 — DASHBOARD, VOCABULARY, LOOKUP, SETTINGS
 
+> **Cập nhật 19/10/2026:** **23/32 task hoàn tất ở mức code và test tự động; exit gate chưa đóng.** Baseline Phase 6 trước là 22/32 với 80 Swift tests / 8 suites, 17 Python tests và 18 backend auth tests qua, build/cài iPhone 14 Plus thành công. Lượt Phase 7 đã nối thêm IOS-0605 Dashboard → Review. Còn kiểm chứng staging web/native, đồng bộ trên iPhone, vị trí cuộn, foreground/relaunch và VoiceOver. Người dùng hiện có một tài khoản test nên kiểm tra cách ly hai tài khoản chưa chạy. Xem [trạng thái từng task và lệnh chạy tiếp](ios-phase6-status.md) cùng [bằng chứng Phase 6](evidence/phase6-verification-2026-10-19.md). Các ô đã tick không thay thế QA thiết bị.
+
 **Mục tiêu:** Có chức năng học Lexi đầu tiên dùng dữ liệu thật từ NestJS, đồng bộ web ↔ iOS.
 
 ## 6.A. Vocabulary API mapping từ code thật
@@ -718,45 +720,45 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 
 ### Dashboard
 
-- [ ] **IOS-0601** Implement `DashboardRepository` dùng `GET /stats/overview`, `/streak`, `/badges`, `/review/due`.
-- [ ] **IOS-0602** `DashboardViewModel` `@MainActor`: loaded/loading/empty/error/stale; cached data hiển thị được khi reconnect.
-- [ ] **IOS-0603** UI cards: greeting, daily goal, due today, current streak, XP/stat summary (không giả dữ liệu).
-- [ ] **IOS-0604** Refresh gesture có cancellation và thông báo nếu offline/expired session.
-- [ ] **IOS-0605** CTA từ dashboard tới Review và Vocabulary; nhận đúng due count thực.
-- [ ] **IOS-0606** Test timezone/time-of-day ảnh hưởng streak/due không dùng giờ thiết bị làm nguồn sự thật.
+- [x] **IOS-0601** Implement `DashboardRepository` dùng `GET /stats/overview`, `/streak`, `/badges`, `/review/due`.
+- [x] **IOS-0602** `DashboardViewModel` `@MainActor`: loaded/loading/empty/error/stale; cached data hiển thị được khi reconnect.
+- [x] **IOS-0603** UI cards: greeting, daily goal, due today, current streak, XP/stat summary (không giả dữ liệu).
+- [x] **IOS-0604** Refresh gesture có cancellation và thông báo nếu offline/expired session.
+- [x] **IOS-0605** CTA từ dashboard tới Review và Vocabulary; nhận đúng due count thực.
+- [x] **IOS-0606** Test timezone/time-of-day ảnh hưởng streak/due không dùng giờ thiết bị làm nguồn sự thật.
 
 ### Vocabulary
 
-- [ ] **IOS-0607** Tạo `WordListView` với search, filter status, topic, sort, pagination.
-- [ ] **IOS-0608** Tạo `WordRow`, `WordDetailView`, phonetic, examples, synonym/antonym và topic tags.
-- [ ] **IOS-0609** Tạo `AddWordSheet` cho create word, mapping `word→term`, `pos→partOfSpeech`.
-- [ ] **IOS-0610** Tạo `DeleteWordConfirm`, tránh xóa do gesture vô tình.
-- [ ] **IOS-0611** Tạo `QuickAddView` cho `POST /words/quick-add`; hiển thị generated synonyms theo response.
-- [ ] **IOS-0612** Hỗ trợ xử lý từ trùng/lỗi validation/AI quota qua thông báo typed, không cho user thấy JSON thô.
-- [ ] **IOS-0613** Debounce search; request cancellation khi query đổi; không nhấp nháy danh sách cũ sai trạng thái.
+- [x] **IOS-0607** Tạo `WordListView` với search, filter status, topic, sort, pagination.
+- [x] **IOS-0608** Tạo `WordRow`, `WordDetailView`, phonetic, examples, synonym/antonym và topic tags.
+- [x] **IOS-0609** Tạo `AddWordSheet` cho create word, mapping `word→term`, `pos→partOfSpeech`.
+- [x] **IOS-0610** Tạo `DeleteWordConfirm`, tránh xóa do gesture vô tình.
+- [x] **IOS-0611** Tạo `QuickAddView` cho `POST /words/quick-add`; hiển thị generated synonyms theo response.
+- [x] **IOS-0612** Hỗ trợ xử lý từ trùng/lỗi validation/AI quota qua thông báo typed, không cho user thấy JSON thô.
+- [x] **IOS-0613** Debounce search; request cancellation khi query đổi; không nhấp nháy danh sách cũ sai trạng thái.
 - [ ] **IOS-0614** Pagination append đúng thứ tự, không duplicate row, bảo toàn scroll position.
-- [ ] **IOS-0615** Sync sau create/delete: invalidate cached word list/dashboard/due; không đưa UI tới trạng thái ảo.
+- [x] **IOS-0615** Sync sau create/delete: invalidate cached word list/dashboard/due; không đưa UI tới trạng thái ảo.
 - [ ] **IOS-0616** Ở web cùng account tạo từ X → reload iPhone thấy X; iPhone xóa X → web thấy X biến mất.
 
 ### Dictionary / lookup
 
-- [ ] **IOS-0617** Implement guest lookup public từ màn trước login nếu scope yêu cầu; không gửi Bearer token không cần thiết.
-- [ ] **IOS-0618** Tạo lookup term + level; present result meaning, phonetic, examples, synonyms; status loading/timeout/429.
-- [ ] **IOS-0619** AI lookup không tự retry mutating POST vô điều kiện (tránh AI cost), có Retry user gesture.
-- [ ] **IOS-0620** Chức năng “Lưu vào sổ từ” chỉ sau login hợp lệ; bảo toàn term/meaning sau transition.
+- [x] **IOS-0617** Implement guest lookup public từ màn trước login nếu scope yêu cầu; không gửi Bearer token không cần thiết.
+- [x] **IOS-0618** Tạo lookup term + level; present result meaning, phonetic, examples, synonyms; status loading/timeout/429.
+- [x] **IOS-0619** AI lookup không tự retry mutating POST vô điều kiện (tránh AI cost), có Retry user gesture.
+- [x] **IOS-0620** Chức năng “Lưu vào sổ từ” chỉ sau login hợp lệ; bảo toàn term/meaning sau transition.
 
 ### Settings/Profile
 
-- [ ] **IOS-0621** Tạo `SettingsView`: `dailyGoal`, CEFR, topics, timezone, reminderTime, notifyEnabled, `ttsVoice`.
-- [ ] **IOS-0622** Mapping nullable settings và enum `EN_US/EN_GB`, `A1…C2` đúng API.
-- [ ] **IOS-0623** Bảo toàn timezone IANA từ backend và logic validate; không silent đổi timezone khi di chuyển.
+- [x] **IOS-0621** Tạo `SettingsView`: `dailyGoal`, CEFR, topics, timezone, reminderTime, notifyEnabled, `ttsVoice`.
+- [x] **IOS-0622** Mapping nullable settings và enum `EN_US/EN_GB`, `A1…C2` đúng API.
+- [x] **IOS-0623** Bảo toàn timezone IANA từ backend và logic validate; không silent đổi timezone khi di chuyển.
 - [ ] **IOS-0624** `PATCH /users/me/settings` kèm CSRF? **Native bearer route sau Phase 4 phải pass**.
-- [ ] **IOS-0625** Tạo logout confirmation và app privacy section (deletion đưa ở Phase 11 nếu release yêu cầu).
+- [x] **IOS-0625** Tạo logout confirmation và app privacy section (deletion đưa ở Phase 11 nếu release yêu cầu).
 - [ ] **IOS-0626** Sync settings iPhone↔web; conflict policy server-last-writer nếu chưa versioned, hiển thị trạng thái save.
 
 ## 6.C. Test quan trọng
 
-- [ ] **IOS-0627** Unit tests decoding/mapping words statuses, nil/empty fields, pagination.
+- [x] **IOS-0627** Unit tests decoding/mapping words statuses, nil/empty fields, pagination.
 - [ ] **IOS-0628** Integration test create→GET→delete một từ staging, cleanup test data.
 - [ ] **IOS-0629** Test client A/web và client B/iPhone dùng **cùng user**, đảm bảo đúng dữ liệu.
 - [ ] **IOS-0630** Test user A và B cách ly dữ liệu, 403/404 không rò rỉ IDOR.
@@ -770,6 +772,8 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 
 # PHASE 7 — SRS REVIEW, FLASHCARDS, QUIZ (MVP CORE)
 
+> **Cập nhật 19/10/2026:** **25/35 task hoàn tất ở phạm vi code/test hoặc đề xuất; G4 chưa đóng.** Review, Flashcards và Quiz đã nối API/SwiftUI; sửa autosave, recovery sau timeout/relaunch, 401 refresh và nối Dashboard → Review. Xem [trạng thái từng task](ios-phase7-status.md) và [bằng chứng kiểm chứng](evidence/phase7-verification-2026-10-19.md). Những ô tick dưới đây không thay thế QA iPhone, staging/web sync hoặc xác nhận deploy `/quiz/latest`.
+
 **Mục tiêu:** Chứng minh sản phẩm iOS giúp người dùng học thật; tất cả cập nhật lịch ôn/quiz lưu trên server và xuất hiện đúng trên web.
 
 ## 7.A. Endpoints đang có
@@ -780,6 +784,7 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 | `POST` | `/review/answer` | `{wordId,rating}` → server cập nhật SRS |
 | `GET` | `/review/flashcards?mode=...&limit=...&scope=...` | Deck flashcard |
 | `POST` | `/quiz/generate` | Tạo quiz MCQ |
+| `GET` | `/quiz/latest` | Tìm bài gần nhất của user; có source local Phase 7, chưa xác minh deploy |
 | `GET` | `/quiz/:id` | Resume quiz (chưa lộ đáp án) |
 | `PATCH` | `/quiz/:id/progress` | Lưu đáp án tạm |
 | `POST` | `/quiz/submit` | Nộp/chấm quiz |
@@ -788,41 +793,41 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 
 ## 7.B. Review workflow
 
-- [ ] **IOS-0701** Implement `ReviewRepository` / DTOs đúng `getDueReviews` và `submitReviewAnswer`.
-- [ ] **IOS-0702** ViewModel có `cards`, `currentIndex`, `isSubmitting`, `result`, `completed`, `failure` và cancellation.
-- [ ] **IOS-0703** UI hiển thị mặt trước/meaning, reveal answer và 4 mức rating rõ ràng.
-- [ ] **IOS-0704** Chặn double-tap rating trong lúc POST in-flight.
-- [ ] **IOS-0705** Đợi API **acknowledge success** rồi mới tính thẻ đã ôn và di chuyển vĩnh viễn; không silent ignore thất bại.
-- [ ] **IOS-0706** Khi timeout sau POST (không biết server nhận chưa), **không tự retry** nếu thiếu idempotency key. Re-fetch trạng thái due/word và hiển thị thông tin phù hợp.
-- [ ] **IOS-0707** Đề xuất backend `Idempotency-Key` cho review submission (optional nhưng đáng ưu tiên trước offline/poor network).
-- [ ] **IOS-0708** Sau rating, invalidate dashboard/stats/streak/due cache đúng mức.
-- [ ] **IOS-0709** Completion screen hiển thị progress thực từ server; không cộng XP hardcode.
+- [x] **IOS-0701** Implement `ReviewRepository` / DTOs đúng `getDueReviews` và `submitReviewAnswer`.
+- [x] **IOS-0702** ViewModel có `cards`, `currentIndex`, `isSubmitting`, `result`, `completed`, `failure` và cancellation.
+- [x] **IOS-0703** UI hiển thị mặt trước/meaning, reveal answer và 4 mức rating rõ ràng.
+- [x] **IOS-0704** Chặn double-tap rating trong lúc POST in-flight.
+- [x] **IOS-0705** Đợi API **acknowledge success** rồi mới tính thẻ đã ôn và di chuyển vĩnh viễn; không silent ignore thất bại.
+- [x] **IOS-0706** Khi timeout sau POST (không biết server nhận chưa), **không tự retry** nếu thiếu idempotency key. Re-fetch trạng thái due/word và hiển thị thông tin phù hợp.
+- [x] **IOS-0707** Đề xuất backend `Idempotency-Key` cho review submission (optional nhưng đáng ưu tiên trước offline/poor network).
+- [x] **IOS-0708** Sau rating, invalidate dashboard/stats/streak/due cache đúng mức.
+- [x] **IOS-0709** Completion screen hiển thị progress thực từ server; không cộng XP hardcode.
 - [ ] **IOS-0710** Test app bị kill khi đang submit, mở lại không double-apply SRS.
 - [ ] **IOS-0711** Test web ôn từ X rồi iPhone load `/review/due`, X không còn due theo server.
 - [ ] **IOS-0712** Test timezone rollover, due sorting, same word không hiển thị lặp sai.
 
 ## 7.C. Flashcards
 
-- [ ] **IOS-0713** Tạo `FlashcardsView` modes `guess`, `listen`, `fill`, `match` theo API có sẵn.
-- [ ] **IOS-0714** Chỉ implement các mode sau khi đã có response fixture tương ứng; không đoán fields của `answerIndex`/`cloze`.
-- [ ] **IOS-0715** Flip animation đáp ứng Reduce Motion; fallback non-animated khi user bật accessibility settings.
-- [ ] **IOS-0716** `listen` dùng AVSpeechSynthesizer ở phase cơ bản, không bắt buộc recording.
-- [ ] **IOS-0717** Phân biệt scope request `today/due` với scope server trả về (có fallback).
-- [ ] **IOS-0718** Empty deck và all mastered states có CTA hợp lý; tránh crash index out of bounds.
-- [ ] **IOS-0719** Unit tests scoring/UX state transitions nhưng **không chấm lịch SRS client-side**.
+- [x] **IOS-0713** Tạo `FlashcardsView` modes `guess`, `listen`, `fill`, `match` theo API có sẵn.
+- [x] **IOS-0714** Chỉ implement các mode sau khi đã có response fixture tương ứng; không đoán fields của `answerIndex`/`cloze`.
+- [x] **IOS-0715** Flip animation đáp ứng Reduce Motion; fallback non-animated khi user bật accessibility settings.
+- [x] **IOS-0716** `listen` dùng AVSpeechSynthesizer ở phase cơ bản, không bắt buộc recording.
+- [x] **IOS-0717** Phân biệt scope request `today/due` với scope server trả về (có fallback).
+- [x] **IOS-0718** Empty deck và all mastered states có CTA hợp lý; tránh crash index out of bounds.
+- [x] **IOS-0719** Unit tests scoring/UX state transitions nhưng **không chấm lịch SRS client-side**.
 
 ## 7.D. Quiz
 
-- [ ] **IOS-0720** Implement Generate Quiz (mặc định count) và `QuizState` DTO.
-- [ ] **IOS-0721** `QuizView`: chọn 1 trong nhiều đáp án, progress bar, pause/resume, next/back behavior.
-- [ ] **IOS-0722** Phải tôn trọng backend chưa trả đáp án trước khi submit; **không** tính đúng/sai bằng thông tin không có.
-- [ ] **IOS-0723** Debounce/throttle save partial progress; không spam `PATCH` mỗi tap.
-- [ ] **IOS-0724** Submit một lần với guard; khi response uncertain cần fetch quiz state trước khi retry.
-- [ ] **IOS-0725** Result screen: score, explanation, mistakes, words to review; dữ liệu từ API.
+- [x] **IOS-0720** Implement Generate Quiz (mặc định count) và `QuizState` DTO.
+- [x] **IOS-0721** `QuizView`: chọn 1 trong nhiều đáp án, progress bar, pause/resume, next/back behavior.
+- [x] **IOS-0722** Phải tôn trọng backend chưa trả đáp án trước khi submit; **không** tính đúng/sai bằng thông tin không có.
+- [x] **IOS-0723** Debounce/throttle save partial progress; không spam `PATCH` mỗi tap.
+- [x] **IOS-0724** Submit một lần với guard; khi response uncertain cần fetch quiz state trước khi retry.
+- [x] **IOS-0725** Result screen: score, explanation, mistakes, words to review; dữ liệu từ API.
 - [ ] **IOS-0726** Resume quiz sau app kill/background hoặc đổi thiết bị, đúng trạng thái server.
-- [ ] **IOS-0727** Cập nhật stats/streak/XP từ backend; không nhân đôi completion.
-- [ ] **IOS-0728** Test 401 giữa quiz, refresh token và resume không mất answers.
-- [ ] **IOS-0729** Test 429 AI generation, timeout, no saved words, quiz already completed, malformed options.
+- [x] **IOS-0727** Cập nhật stats/streak/XP từ backend; không nhân đôi completion.
+- [x] **IOS-0728** Test 401 giữa quiz, refresh token và resume không mất answers.
+- [x] **IOS-0729** Test 429 AI generation, timeout, no saved words, quiz already completed, malformed options.
 
 ## 7.E. MVP Go/No-Go
 
@@ -838,6 +843,8 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 
 ---
 # PHASE 8 — AI TEXT: TUTOR, GRAMMAR, WRITING, CONTEXT, CONVERSATION
+
+> **Cập nhật 19/10/2026:** **25/29 task có bằng chứng code/test hoặc xác nhận người dùng; exit gate chưa đóng.** Đã cài Phase 8 lên iPhone; người dùng xác nhận Tutor, Writing/hoàn tác và Conversation relaunch/resume/end hoạt động. Có cancellation/cooldown, giữ draft, xác nhận lưu, history/resume và tests synthetic. Còn kiểm lỗi/background giữa request trên iPhone, parity web–native, cost và content safety live. Xem [trạng thái từng task](ios-phase8-status.md) và [bằng chứng](evidence/phase8-verification-2026-10-19.md).
 
 **Mục tiêu:** Port UI iOS cho các API AI đã có ở NestJS; **không** đưa AI key hoặc prompt secrets vào app.
 
@@ -865,43 +872,43 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 
 ### AI infrastructure
 
-- [ ] **IOS-0801** Tạo `AIRequestState`: idle, submitting, success, validationError, rateLimited, timeout, serverError.
-- [ ] **IOS-0802** Timeout dài hơn với tutor/writing, nhưng có cancellation và UX chờ rõ ràng.
-- [ ] **IOS-0803** Không tự retry POST tính phí khi timeout/unknown server state.
-- [ ] **IOS-0804** Có quota/rate-limit message và “Try again” do user chủ động.
-- [ ] **IOS-0805** Respect backend schema/JSON response, không tự parse arbitrary LLM text như source chính.
-- [ ] **IOS-0806** AI outputs có disclaimer phù hợp về khả năng sai, nhất là grammar/feedback; không quảng cáo điểm phát âm là chuẩn tuyệt đối.
+- [x] **IOS-0801** Tạo `AIRequestState`: idle, submitting, success, validationError, rateLimited, timeout, serverError.
+- [x] **IOS-0802** Timeout dài hơn với tutor/writing, nhưng có cancellation và UX chờ rõ ràng.
+- [x] **IOS-0803** Không tự retry POST tính phí khi timeout/unknown server state.
+- [x] **IOS-0804** Có quota/rate-limit message và “Try again” do user chủ động.
+- [x] **IOS-0805** Respect backend schema/JSON response, không tự parse arbitrary LLM text như source chính.
+- [x] **IOS-0806** AI outputs có disclaimer phù hợp về khả năng sai, nhất là grammar/feedback; không quảng cáo điểm phát âm là chuẩn tuyệt đối.
 
 ### Tutor
 
-- [ ] **IOS-0807** `TutorChatView`: bubble user/assistant, typing/loading, scroll anchoring, keyboard safe area.
-- [ ] **IOS-0808** Send `question` + `history` theo contract (`role: user|assistant`, `content`).
-- [ ] **IOS-0809** Phân biệt persisted conversations và client draft/history; không hứa server persist nếu API không có.
-- [ ] **IOS-0810** Suggested words/grammar từ `TutorResult` hiện nút Save; confirm trước khi tạo word/grammar thật.
-- [ ] **IOS-0811** Nếu app background giữa AI response, quản lý cancellation/retry UX, không gửi lặp request vô tình.
+- [x] **IOS-0807** `TutorChatView`: bubble user/assistant, typing/loading, scroll anchoring, keyboard safe area.
+- [x] **IOS-0808** Send `question` + `history` theo contract (`role: user|assistant`, `content`).
+- [x] **IOS-0809** Phân biệt persisted conversations và client draft/history; không hứa server persist nếu API không có.
+- [x] **IOS-0810** Suggested words/grammar từ `TutorResult` hiện nút Save; confirm trước khi tạo word/grammar thật.
+- [x] **IOS-0811** Nếu app background giữa AI response, quản lý cancellation/retry UX, không gửi lặp request vô tình.
 
 ### Grammar, Context, Writing
 
-- [ ] **IOS-0812** `GrammarListView` + detail và editor, đúng nullable `title`, formula, explanation, examples.
-- [ ] **IOS-0813** `GrammarQASheet` submit question/history theo endpoint.
-- [ ] **IOS-0814** Create/update/delete grammar qua API, refresh local cache sau mutation.
-- [ ] **IOS-0815** `ContextAnalysisView`: nhập đoạn văn, hiển thị highlight terms/note, selection/copy accessible.
-- [ ] **IOS-0816** `WritingView`: multiline composer, character count theo backend DTO, keyboard UX.
-- [ ] **IOS-0817** `WritingResultView`: correctedText, issues, explanations, score từ backend; tránh lệch index với Unicode grapheme.
-- [ ] **IOS-0818** Đảm bảo bài viết/chats không được gửi ra analytics/log ngoài chính backend nghiệp vụ khi chưa có chính sách privacy.
+- [x] **IOS-0812** `GrammarListView` + detail và editor, đúng nullable `title`, formula, explanation, examples.
+- [x] **IOS-0813** `GrammarQASheet` submit question/history theo endpoint.
+- [x] **IOS-0814** Create/update/delete grammar qua API, refresh local cache sau mutation.
+- [x] **IOS-0815** `ContextAnalysisView`: nhập đoạn văn, hiển thị highlight terms/note, selection/copy accessible.
+- [x] **IOS-0816** `WritingView`: multiline composer, character count theo backend DTO, keyboard UX.
+- [x] **IOS-0817** `WritingResultView`: correctedText, issues, explanations, score từ backend; tránh lệch index với Unicode grapheme.
+- [x] **IOS-0818** Đảm bảo bài viết/chats không được gửi ra analytics/log ngoài chính backend nghiệp vụ khi chưa có chính sách privacy.
 
 ### Conversation
 
-- [ ] **IOS-0819** Load conversation scenarios theo API thực hoặc nguồn được spec xác định, không hardcode “session ID” giả.
-- [ ] **IOS-0820** Start scenario → lưu returned ID → reply → end.
-- [ ] **IOS-0821** History list/detail và continue/end state; app relaunch resume phiên đúng contract.
-- [ ] **IOS-0822** Chặn parallel messages gây đảo thứ tự; serial request hoặc concurrency control theo thiết kế backend.
-- [ ] **IOS-0823** Kết thúc scenario và hiển thị summary sau khi server xác nhận.
-- [ ] **IOS-0824** Nếu streaming không có trong backend hiện tại, **không tự ghi tính năng streaming** vào UI; thêm API/version riêng khi cần.
+- [x] **IOS-0819** Load conversation scenarios theo API thực hoặc nguồn được spec xác định, không hardcode “session ID” giả.
+- [x] **IOS-0820** Start scenario → lưu returned ID → reply → end.
+- [x] **IOS-0821** History list/detail và continue/end state; app relaunch resume phiên đúng contract. Người dùng xác nhận trên iPhone sau response; force-kill giữa request còn thuộc verification IOS-0826.
+- [x] **IOS-0822** Chặn parallel messages gây đảo thứ tự; serial request hoặc concurrency control theo thiết kế backend.
+- [x] **IOS-0823** Kết thúc scenario và hiển thị summary sau khi server xác nhận.
+- [x] **IOS-0824** Nếu streaming không có trong backend hiện tại, **không tự ghi tính năng streaming** vào UI; thêm API/version riêng khi cần.
 
 ### Verification
 
-- [ ] **IOS-0825** Fixture test với AI response thiếu optional words/grammar; API error invalid schema.
+- [x] **IOS-0825** Fixture test với AI response thiếu optional words/grammar; API error invalid schema.
 - [ ] **IOS-0826** Test 429, invalid input, timeout, duplicate-submit, app background/foreground.
 - [ ] **IOS-0827** So sánh kết quả tutor/writing/grammar trên web và iOS cho cùng endpoint/inputs (có dao động AI, so contract không so text từng ký tự).
 - [ ] **IOS-0828** Cost-control: đo AI requests/session, rate limits, requests thất bại; không log full user prompt.

@@ -127,7 +127,12 @@ final class WordDetailViewModel {
         guard !busy, !deleting, feedback?.canRetry() != false else { return }
         busy = true; feedback = nil; defer { busy = false }
         do { let result = try await api.get(id: id); try Task.checkCancellation(); word = result }
-        catch { if !isCancellation(error) { feedback = FeatureFeedback(error) } }
+        catch {
+            if !isCancellation(error) {
+                if case .notFound = error as? HTTPError { word = nil }
+                feedback = FeatureFeedback(error)
+            }
+        }
     }
 
     func delete() async -> Bool {
@@ -136,6 +141,11 @@ final class WordDetailViewModel {
         do {
             guard try await api.delete(id: id).deleted else { throw HTTPError.invalidResponse }
             word = nil; return true
-        } catch { feedback = FeatureFeedback(error, mutation: true); return false }
+        } catch {
+            // Another client may already have removed it, or a previous DELETE
+            // may have committed before its response was lost.
+            if case .notFound = error as? HTTPError { word = nil; return true }
+            feedback = FeatureFeedback(error, mutation: true); return false
+        }
     }
 }

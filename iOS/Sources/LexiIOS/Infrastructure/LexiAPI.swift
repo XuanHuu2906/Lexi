@@ -9,6 +9,9 @@ struct LexiAPI: HealthChecking, Sendable {
     var quiz: QuizAPI { QuizAPI(client: client) }
     var stats: StatsAPI { StatsAPI(client: client) }
     var settings: SettingsAPI { SettingsAPI(client: client) }
+    var aiText: AITextAPI { AITextAPI(client: client) }
+    var grammar: GrammarAPI { GrammarAPI(client: client) }
+    var conversation: ConversationAPI { ConversationAPI(client: client) }
     func check() async throws -> HealthResponse { try await HealthClient(client: client).check() }
 }
 
@@ -143,6 +146,9 @@ struct ReviewAPI: Sendable {
 
 struct QuizAPI: Sendable {
     let client: APIClient
+    func latest() async throws -> LatestQuiz {
+        try await client.send(APIEndpoint(path: ["quiz", "latest"], retry: .safeReadOnce))
+    }
     func generate(count: Int = 10) async throws -> GeneratedQuiz {
         guard (4...20).contains(count) else { throw HTTPError.invalidRequest }
         struct Body: Encodable { let count: Int }

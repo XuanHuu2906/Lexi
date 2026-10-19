@@ -29,40 +29,60 @@ struct DashboardView: View {
     var body: some View {
         LexiPage {
             Text("Chào bạn, cùng học với Lexi.").font(LexiTypography.hero).accessibilityAddTraits(.isHeader)
-            Text(email).font(.callout).textSelection(.enabled)
+            Text(email).font(LexiTypography.secondary).foregroundStyle(LexiColors.textSecondary).textSelection(.enabled)
             if let feedback = model.feedback { FeatureErrorView(feedback: feedback) { attempt += 1 } }
             if model.phase == .stale {
-                Text("Đang hiển thị dữ liệu lần tải trước. Kéo xuống để cập nhật.").font(.callout)
+                FeedbackNotice(message: "Đang hiển thị dữ liệu lần tải trước. Kéo xuống để cập nhật.", symbol: "arrow.clockwise")
             }
             if model.phase == .loading, model.snapshot != nil { ProgressView("Đang cập nhật…") }
             if let data = model.snapshot {
+                VStack(alignment: .leading, spacing: LexiSpacing.lg) {
+                    Label(data.due.total > 0 ? "Duy trì nhịp học" : "Mỗi ngày một chút", systemImage: "sparkles")
+                        .font(LexiTypography.label)
+                    Text(data.due.total > 0 ? "\(data.due.total) từ đến hạn ôn" : "Khám phá sổ từ của bạn")
+                        .font(LexiTypography.title).accessibilityAddTraits(.isHeader)
+                    Text(data.due.total > 0
+                         ? "Ôn một lượt ngắn để ghi nhớ các từ đã học."
+                         : "Chưa có từ đến hạn ôn. Cùng học thêm một từ mới nhé.")
+                        .font(LexiTypography.body)
+                    if data.due.total > 0 {
+                        LexiButton(title: "Bắt đầu ôn tập", variant: .secondary) { navigation.selectedTab = .review }
+                    } else {
+                        LexiButton(title: "Xem sổ từ", variant: .secondary) { navigation.selectedTab = .vocabulary }
+                    }
+                }
+                .foregroundStyle(.white)
+                .padding(LexiSpacing.xl)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(LexiColors.grape500, in: RoundedRectangle(cornerRadius: LexiRadii.card))
                 LexiCard {
-                    Text("Mục tiêu hôm nay").font(LexiTypography.heading)
+                    Text("Mục tiêu hôm nay").font(LexiTypography.cardTitle).accessibilityAddTraits(.isHeader)
                     ProgressBar(value: Double(data.streak.today.wordsReviewed), total: Double(data.streak.today.dailyGoal),
                                 label: "\(data.streak.today.wordsReviewed)/\(data.streak.today.dailyGoal) từ đã ôn")
                     StreakBadge(days: data.streak.currentStreak)
-                    Text("Ngày học được tính theo múi giờ tài khoản trên máy chủ.").font(.caption)
+                    Text("Tiến độ ngày học được cập nhật từ máy chủ.")
+                        .font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
                 }
                 LexiCard {
-                    Text("\(data.due.total) từ đến hạn ôn").font(LexiTypography.title)
-                    LexiButton(title: "Đến ôn tập (\(data.due.total))") { navigation.selectedTab = .review }
-                }
-                LexiCard {
+                    Text("Hành trình của bạn").font(LexiTypography.cardTitle).accessibilityAddTraits(.isHeader)
                     LabeledContent("Tổng số từ", value: String(data.stats.totalWords))
-                    LabeledContent("Đã thành thạo", value: String(data.stats.mastered))
-                    LabeledContent("Đang học", value: String(data.stats.learning))
                     LabeledContent("Số lượt ôn", value: String(data.stats.reviewsCount))
                     LabeledContent("Ngày hoạt động", value: String(data.stats.activeDays))
-                    LexiButton(title: "Mở sổ từ", variant: .secondary) { navigation.selectedTab = .vocabulary }
+                }
+                LexiCard {
+                    Text("Tiến trình từ vựng").font(LexiTypography.cardTitle).accessibilityAddTraits(.isHeader)
+                    LabeledContent { Text(String(data.stats.new)) } label: { WordStatusChip(status: .new) }
+                    LabeledContent { Text(String(data.stats.learning)) } label: { WordStatusChip(status: .learning) }
+                    LabeledContent { Text(String(data.stats.mastered)) } label: { WordStatusChip(status: .mastered) }
                 }
                 let earned = data.badges.badges.filter(\.earned)
                 if !earned.isEmpty {
                     LexiCard {
-                        Text("Huy hiệu của bạn").font(LexiTypography.heading)
+                        Text("Huy hiệu của bạn").font(LexiTypography.cardTitle).accessibilityAddTraits(.isHeader)
                         ForEach(earned, id: \.code) { badge in
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: LexiSpacing.sm) {
                                 BadgeChip(title: badge.name, symbol: "medal.fill")
-                                Text(badge.description).font(.callout)
+                                Text(badge.description).font(LexiTypography.secondary).foregroundStyle(LexiColors.textSecondary)
                             }
                         }
                     }
@@ -104,7 +124,7 @@ struct WordListView: View {
                         Text("Tất cả").tag(BackendWordStatus?.none)
                         Text("Mới").tag(BackendWordStatus?.some(.new))
                         Text("Đang học").tag(BackendWordStatus?.some(.learning))
-                        Text("Thành thạo").tag(BackendWordStatus?.some(.mastered))
+                        Text("Đã thuộc").tag(BackendWordStatus?.some(.mastered))
                     }
                     TextField("Chủ đề (đúng tên)", text: Binding(get: { model.query.topic ?? "" }, set: { model.query.topic = $0.nonempty }))
                         .accessibilityLabel("Lọc theo chủ đề")
@@ -116,7 +136,7 @@ struct WordListView: View {
                 }
             }
             if let feedback = model.feedback { FeatureErrorView(feedback: feedback) { attempt += 1 } }
-            if model.phase == .stale { Text("Dữ liệu lần tải trước. Kéo xuống để cập nhật.").font(.caption) }
+            if model.phase == .stale { FeedbackNotice(message: "Dữ liệu lần tải trước. Kéo xuống để cập nhật.", symbol: "arrow.clockwise") }
             Section("\(model.total) từ") {
                 ForEach(model.items) { word in
                     NavigationLink(value: AppRoute.word(id: word.id)) { WordRow(word: word) }
@@ -124,6 +144,9 @@ struct WordListView: View {
                 if model.phase == .loading { ProgressView("Đang tải sổ từ…") }
                 if model.phase == .empty {
                     EmptyState(title: "Chưa có từ phù hợp", message: "Thử thay đổi bộ lọc hoặc thêm một từ mới.", symbol: "books.vertical")
+                    NavigationLink { LookupView(api: api, session: session, changed: changed) } label: {
+                        Label("Tra từ mới", systemImage: "magnifyingglass")
+                    }
                 }
                 if model.hasMore {
                     Button { Task { await model.nextPage() } } label: {
@@ -132,7 +155,7 @@ struct WordListView: View {
                 }
             }
         }
-        .scrollContentBackground(.hidden).background(LexiColors.cloud100)
+        .lexiFormStyle()
         .searchable(text: Binding(get: { model.query.search ?? "" }, set: { model.query.search = $0.nonempty }), prompt: "Tìm từ tiếng Anh")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -154,27 +177,36 @@ struct WordListView: View {
 
 struct WordRow: View {
     let word: Word
+    var prominent = false
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(word.word).font(.headline)
-            if let phonetic = word.phonetic?.nonempty { Text(phonetic).font(.subheadline).foregroundStyle(.secondary) }
-            Text(word.meaning).font(.body)
-            Text(word.status == .new ? "Mới" : word.status == .due ? "Đang học" : "Thành thạo")
-                .font(.caption).foregroundStyle(LexiColors.grape600)
-            if let topic = word.topic?.nonempty { Text(topic).font(.caption).foregroundStyle(.secondary) }
-        }.padding(.vertical, 6).accessibilityElement(children: .combine)
+        VStack(alignment: .leading, spacing: LexiSpacing.sm) {
+            Text(word.word).font(prominent ? LexiTypography.word : LexiTypography.heading)
+                .fixedSize(horizontal: false, vertical: true)
+            if let phonetic = word.phonetic?.nonempty { PhoneticText(value: phonetic) }
+            if let pos = word.pos?.nonempty { BadgeChip(title: pos, symbol: "textformat") }
+            Text(word.meaning).font(LexiTypography.body).fixedSize(horizontal: false, vertical: true)
+            TimelineView(.periodic(from: .now, by: 60)) { context in
+                WordStatusChip(status: word.displayStatus(at: context.date))
+            }
+            if let topic = word.topic?.nonempty {
+                Text(topic).font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
+            }
+        }.padding(.vertical, LexiSpacing.sm).accessibilityElement(children: .combine)
     }
 }
 
 struct WordDetailView: View {
     @State private var model: WordDetailViewModel
+    @State private var speech = StudySpeech()
     @State private var confirmingDelete = false
     @State private var attempt = 0
     @Environment(\.dismiss) private var dismiss
     let changed: () -> Void
+    let locale: String
 
-    init(id: String, api: WordsAPI, changed: @escaping () -> Void) {
+    init(id: String, api: WordsAPI, locale: String, changed: @escaping () -> Void) {
         _model = State(initialValue: WordDetailViewModel(id: id, api: api)); self.changed = changed
+        self.locale = locale
     }
 
     var body: some View {
@@ -183,12 +215,12 @@ struct WordDetailView: View {
             if model.busy { LoadingState() }
             if let word = model.word {
                 LexiCard {
-                    WordRow(word: word)
-                    if let pos = word.pos?.nonempty { LabeledContent("Loại từ", value: pos) }
+                    WordRow(word: word, prominent: true)
+                    StudyAudioButton(term: word.word, locale: locale, speech: speech)
                     WordTextSection(title: "Ví dụ", values: word.examples)
                     WordTextSection(title: "Đồng nghĩa", values: word.synonyms)
                     WordTextSection(title: "Trái nghĩa", values: word.antonyms)
-                    if let note = word.note?.nonempty { Text(note).font(.callout) }
+                    if let note = word.note?.nonempty { FeedbackNotice(message: note) }
                 }
                 LexiButton(title: "Xóa từ", variant: .destructive, isLoading: model.deleting, isDisabled: model.busy) {
                     confirmingDelete = true
@@ -196,6 +228,7 @@ struct WordDetailView: View {
             }
         }
         .navigationTitle("Chi tiết từ")
+        .onDisappear { speech.stop() }
         .task(id: attempt) { await model.load() }
         .refreshable { await model.load() }
         .confirmationDialog("Xóa từ này khỏi sổ từ?", isPresented: $confirmingDelete, titleVisibility: .visible) {
@@ -216,8 +249,8 @@ struct WordTextSection: View {
     let values: [String]
     var body: some View {
         if !values.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(title).font(.headline).accessibilityAddTraits(.isHeader)
+            VStack(alignment: .leading, spacing: LexiSpacing.sm) {
+                Text(title).font(LexiTypography.heading).accessibilityAddTraits(.isHeader)
                 ForEach(Array(values.enumerated()), id: \.offset) { _, value in Text(value).textSelection(.enabled) }
             }
         }
@@ -229,6 +262,7 @@ struct AddWordSheet: View {
     @State private var input: WordInput
     @State private var synonyms: String
     @State private var antonyms: String
+    @State private var confirmingDiscard = false
     @Environment(\.dismiss) private var dismiss
     let changed: () -> Void
 
@@ -269,9 +303,21 @@ struct AddWordSheet: View {
                     }
                 }
             }
+            .lexiFormStyle()
             .disabled(editor.busy).navigationTitle("Thêm từ")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Đóng") { dismiss() }.disabled(editor.busy) } }
-        }.interactiveDismissDisabled(editor.busy)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Đóng") { if hasDraft { confirmingDiscard = true } else { dismiss() } }.disabled(editor.busy)
+                }
+            }
+            .confirmationDialog("Bỏ nội dung chưa lưu?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
+                Button("Bỏ nội dung", role: .destructive) { dismiss() }
+                Button("Tiếp tục chỉnh sửa", role: .cancel) {}
+            }
+        }.interactiveDismissDisabled(editor.busy || hasDraft)
+    }
+    private var hasDraft: Bool {
+        input != WordInput(word: "", meaning: "") || !synonyms.isEmpty || !antonyms.isEmpty
     }
     private func optional(_ key: WritableKeyPath<WordInput, String?>) -> Binding<String> {
         Binding(get: { input[keyPath: key] ?? "" }, set: { input[keyPath: key] = $0 })
@@ -286,6 +332,7 @@ struct QuickAddView: View {
     @State private var editor: WordEditorModel
     @State private var text = ""
     @State private var topic = ""
+    @State private var confirmingDiscard = false
     @Environment(\.dismiss) private var dismiss
     let changed: () -> Void
     init(api: WordsAPI, changed: @escaping () -> Void) {
@@ -296,6 +343,7 @@ struct QuickAddView: View {
             Form {
                 if let result = editor.quickResult {
                     Section("Đã lưu vào sổ từ") {
+                        FeedbackNotice(message: "Đã lưu từ vào sổ từ", symbol: "checkmark.circle.fill", isSuccess: true)
                         WordRow(word: result.word.toWord())
                         if result.isToeicTerm { BadgeChip(title: "TOEIC") }
                     }
@@ -312,7 +360,8 @@ struct QuickAddView: View {
                     Section("Thêm nhanh") {
                         TextField("Ví dụ: design: thiết kế", text: $text, axis: .vertical).accessibilityLabel("Từ: nghĩa")
                         TextField("Chủ đề", text: $topic).accessibilityLabel("Chủ đề")
-                        Text("Lexi lưu từ rồi tạo gợi ý đồng nghĩa bằng AI.").font(.caption)
+                        Text("Nhập một từ và nghĩa, cách nhau bằng dấu hai chấm. Lexi lưu từ rồi tạo gợi ý đồng nghĩa bằng AI.")
+                            .font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
                     }.disabled(editor.busy)
                     if let feedback = editor.feedback { FeatureErrorView(feedback: feedback) }
                     TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -322,10 +371,19 @@ struct QuickAddView: View {
                         }
                     }
                 }
-            }.navigationTitle("Thêm nhanh")
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Đóng") { dismiss() }.disabled(editor.busy) } }
-        }.interactiveDismissDisabled(editor.busy)
+            }.lexiFormStyle().navigationTitle("Thêm nhanh")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Đóng") { if hasDraft { confirmingDiscard = true } else { dismiss() } }.disabled(editor.busy)
+                    }
+                }
+                .confirmationDialog("Bỏ nội dung chưa lưu?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
+                    Button("Bỏ nội dung", role: .destructive) { dismiss() }
+                    Button("Tiếp tục chỉnh sửa", role: .cancel) {}
+                }
+        }.interactiveDismissDisabled(editor.busy || hasDraft)
     }
+    private var hasDraft: Bool { editor.quickResult == nil && (!text.isEmpty || !topic.isEmpty) }
 }
 
 struct LookupView: View {
@@ -336,6 +394,7 @@ struct LookupView: View {
     @State private var add = false
     @State private var login = false
     @State private var attempt = 0
+    @FocusState private var searchFocused: Bool
 
     init(api: WordsAPI, session: SessionViewModel, changed: @escaping () -> Void = {}) {
         self.api = api; self.session = session; self.changed = changed
@@ -344,8 +403,9 @@ struct LookupView: View {
     var body: some View {
         LexiPage {
             LexiCard {
-                LexiInput(title: "Từ tiếng Anh") {
+                LexiInput(title: "Từ tiếng Anh", isFocused: searchFocused) {
                     TextField("Nhập từ cần tra", text: $model.term).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .focused($searchFocused)
                         .submitLabel(.search).onSubmit { if !model.busy { attempt += 1 } }
                 }
                 Picker("Trình độ giải thích", selection: $model.level) {
@@ -356,17 +416,25 @@ struct LookupView: View {
                                isDisabled: model.feedback?.canRetry(at: context.date) == false) { attempt += 1 }
                 }
             }
+            if model.busy { LoadingState(title: "Lexi đang tra nghĩa và ví dụ…") }
+            if model.result == nil && !model.busy && model.feedback == nil {
+                FeedbackNotice(message: "Nhập một từ tiếng Anh để xem nghĩa, phiên âm và ví dụ trước khi lưu vào sổ từ.", symbol: "magnifyingglass")
+            }
             if let feedback = model.feedback { FeatureErrorView(feedback: feedback) { attempt += 1 } }
             if let result = model.result {
                 LexiCard {
-                    Text(result.term).font(LexiTypography.title)
-                    Text("\(result.phonetic) · \(result.partOfSpeech)").foregroundStyle(.secondary)
-                    Text(result.meaning).font(.headline)
-                    Text(result.meaningEn)
+                    Text(result.term).font(LexiTypography.word).textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true).accessibilityAddTraits(.isHeader)
+                    if !result.partOfSpeech.isEmpty { BadgeChip(title: result.partOfSpeech, symbol: "textformat") }
+                    if !result.phonetic.isEmpty { PhoneticText(value: result.phonetic) }
+                    Text(result.meaning).font(LexiTypography.bodyEmphasis).textSelection(.enabled)
+                    Text(result.meaningEn).font(LexiTypography.body).textSelection(.enabled)
                     WordTextSection(title: "Ví dụ", values: result.examples.map { "\($0.en) — \($0.vi)" })
                     WordTextSection(title: "Đồng nghĩa", values: result.synonyms)
                     WordTextSection(title: "Trái nghĩa", values: result.antonyms)
-                    if !result.contextNote.isEmpty { Text(result.contextNote).font(.callout) }
+                    if !result.contextNote.isEmpty { FeedbackNotice(message: result.contextNote) }
+                    Text("Kết quả do AI tạo. Từ chỉ được lưu sau khi bạn xác nhận lưu vào sổ từ.")
+                        .font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
                     LexiButton(title: "Lưu vào sổ từ") {
                         if case .authenticated = session.state { add = true }
                         else { session.pendingLookup = result.wordInput; login = true }

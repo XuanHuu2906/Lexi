@@ -2,7 +2,10 @@
 import contextlib
 import io
 import unittest
-from smoke_phase6 import SmokeFailure, clients, run
+from smoke_phase6 import Client, SmokeFailure, clients, run
+import json
+from types import SimpleNamespace
+from urllib.error import HTTPError
 
 
 class FakeServer:
@@ -12,6 +15,7 @@ class FakeServer:
         self.calls = []
         self.fail_read_once = False
         self.fail_create_once = False
+        self.fail_settings_once = False
 
     def client(self, user):
         server = self
@@ -23,6 +27,9 @@ class FakeServer:
                     return {'id': user, 'setting': {'dailyGoal': server.goal}}
                 if path == '/users/me/settings':
                     server.goal = body['dailyGoal']
+                    if server.fail_settings_once:
+                        server.fail_settings_once = False
+                        raise SmokeFailure('Synthetic lost response after settings commit')
                     return {'dailyGoal': server.goal}
                 if path == '/words' and method == 'POST':
                     word = {'id': str(len(server.calls)), **body}
@@ -78,6 +85,56 @@ class Phase6SmokeTests(unittest.TestCase):
     def test_missing_credentials_fail_before_network(self):
         with self.assertRaises(SmokeFailure):
             clients({})
+
+    def test_single_account_reports_skipped_isolation(self):
+        server = FakeServer()
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            run(server.client('a'), server.client('a'))
+        self.assertIn('SKIP IOS-0630', output.getvalue())
+        self.assertNotIn('PASS user B', output.getvalue())
+        self.assertIn('PASS native/web CRUD', output.getvalue())
+        self.assertEqual(server.words, {})
+        self.assertEqual(server.goal, 10)
+
+    def test_lost_settings_response_restores_original_goal(self):
+        server = FakeServer()
+        server.goal = 37
+        server.fail_settings_once = True
+        with self.assertRaises(SmokeFailure), contextlib.redirect_stdout(io.StringIO()):
+            run(server.client('a'), server.client('a'))
+        self.assertEqual(server.goal, 37)
+        self.assertEqual(server.words, {})
+
+    def test_single_account_does_not_require_user_b_credentials(self):
+        env = {'LEXI_API_BASE_URL': 'https://example.invalid', 'LEXI_TEST_TOKEN': 'native-a',
+               'LEXI_WEB_COOKIE': 'access_token=web-a; csrf_token=csrf', 'LEXI_WEB_CSRF': 'csrf'}
+        native, web, other = clients(env, single_account=True)
+        self.assertIsNone(other)
+        self.assertNotIn('Cookie', native.headers)
+        self.assertNotIn('Authorization', web.headers)
+        with self.assertRaises(SmokeFailure):
+            clients(env)
+
+    def test_denials_require_api_envelope_and_never_expose_word_data(self):
+        safe = {'success': False, 'statusCode': 404, 'message': 'Word not found'}
+        cases = [(json.dumps(safe).encode(), True), (b'<html>not found</html>', False),
+                 (json.dumps({**safe, 'data': {'meaning': 'private'}}).encode(), False),
+                 (json.dumps({**safe, 'statusCode': 500}).encode(), False)]
+        for raw, valid in cases:
+            with self.subTest(valid=valid, length=len(raw)):
+                error = HTTPError('https://example.invalid/words/test', 404, 'Not found', {}, io.BytesIO(raw))
+
+                def deny(*args, **kwargs):
+                    raise error
+
+                client = Client('https://example.invalid', {}, opener=SimpleNamespace(open=deny))
+                if valid:
+                    self.assertIsNone(client.request('GET', '/words/test', accepted=(404,)))
+                else:
+                    with self.assertRaises(SmokeFailure) as caught:
+                        client.request('GET', '/words/test', accepted=(404,))
+                    self.assertNotIn('private', str(caught.exception))
 
 
 if __name__ == '__main__':

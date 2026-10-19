@@ -9,6 +9,7 @@ private func fixtureValue<T: Decodable & Sendable>(_ name: String, as: T.Type = 
 private actor WordStub: WordServing {
     var pages: [WordPage]
     var error: HTTPError?
+    var getError: HTTPError?
     private(set) var queries: [WordsQuery] = []
     private(set) var creates: [WordInput] = []
     private(set) var lookups = 0
@@ -19,7 +20,11 @@ private actor WordStub: WordServing {
         if let error { throw error }
         return pages.removeFirst()
     }
-    func get(id: String) async throws -> Word { try fixtureValue("word_created", as: BackendWordDTO.self).toWord() }
+    func failGet(_ value: HTTPError) { getError = value }
+    func get(id: String) async throws -> Word {
+        if let getError { throw getError }
+        return try fixtureValue("word_created", as: BackendWordDTO.self).toWord()
+    }
     func create(_ input: WordInput) async throws -> Word {
         creates.append(input)
         if let error { throw error }
@@ -73,12 +78,15 @@ private actor ProfileStub: ProfileServing {
     var value: Settings?
     private(set) var updates: [SettingsUpdate] = []
     private(set) var reads = 0
+    var failure: HTTPError?
     init(value: Settings?) { self.value = value }
     func settings() async throws -> Settings? { reads += 1; return value }
     func update(_ input: SettingsUpdate) async throws -> Settings {
         updates.append(input)
+        if let failure { throw failure }
         return try fixtureValue("settings_updated")
     }
+    func fail(_ value: HTTPError) { failure = value }
 }
 
 @MainActor
@@ -239,6 +247,30 @@ struct LearningFeatureTests {
         #expect(model.feedback?.message.contains("có thể đã được lưu") == true)
     }
 
+    @Test func remoteDeletionClearsDetailButOfflineRetainsIt() async {
+        let api = WordStub()
+        let model = WordDetailViewModel(id: "fixture", api: api)
+        await model.load()
+        #expect(model.word != nil)
+        await api.failGet(.network(-1009))
+        await model.load()
+        #expect(model.word != nil)
+        await api.failGet(.notFound(nil))
+        await model.load()
+        #expect(model.word == nil)
+        #expect(model.feedback != nil)
+    }
+
+    @Test func deleteAlreadyRemovedWordReconcilesAsSuccess() async {
+        let api = WordStub(error: .notFound(nil))
+        let model = WordDetailViewModel(id: "fixture", api: api)
+        await model.load()
+        #expect(model.word != nil)
+        #expect(await model.delete())
+        #expect(model.word == nil)
+        #expect(model.feedback == nil)
+    }
+
     @Test func nullSettingsRequireExplicitTimezoneAndSaveIsValidated() async {
         let api = ProfileStub(value: nil)
         let model = SettingsViewModel(api: api)
@@ -274,6 +306,39 @@ struct LearningFeatureTests {
         draft.reminderTime = "24:00"; #expect(draft.validation != nil)
         draft.reminderTime = "20:00"; draft.dailyGoal = 501; #expect(draft.validation != nil)
         draft.dailyGoal = 10; draft.timeZone = "Mars/Olympus"; #expect(draft.validation != nil)
+    }
+
+    @Test func discardSettingsRestoresLastLoadedValuesWithoutNetworkRequests() async throws {
+        let value: Settings = try fixtureValue("settings_updated")
+        let api = ProfileStub(value: value)
+        let model = SettingsViewModel(api: api)
+        await model.load()
+        model.draft.dailyGoal = 501
+        model.draft.reminderTime = "invalid"
+        #expect(await model.save() == false)
+        #expect(model.feedback != nil)
+        model.discardChanges()
+        #expect(model.draft == SettingsDraft(value))
+        #expect(!model.dirty)
+        #expect(model.feedback == nil)
+        #expect(await api.reads == 1)
+        #expect(await api.updates.isEmpty)
+    }
+
+    @Test func discardingSettingsCannotBypassServerCooldown() async throws {
+        let value: Settings = try fixtureValue("settings_updated")
+        let api = ProfileStub(value: value)
+        let model = SettingsViewModel(api: api)
+        await model.load()
+        await api.fail(.rateLimit(retryAfter: 60, payload: nil))
+        model.draft.dailyGoal = value.dailyGoal == 10 ? 11 : 10
+        #expect(await model.save() == false)
+        let retryAt = model.feedback?.retryAt
+        model.discardChanges()
+        model.draft.dailyGoal = value.dailyGoal == 10 ? 11 : 10
+        #expect(await model.save() == false)
+        #expect(model.feedback?.retryAt == retryAt)
+        #expect(await api.updates.count == 1)
     }
 
     @Test(arguments: [HTTPError.unauthorized(nil), .forbidden(nil), .notFound(nil), .conflict(nil),
