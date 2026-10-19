@@ -75,7 +75,8 @@ final class SessionViewModel {
                 offlineSession = false
                 state = .signedOut
                 let cacheCleared = await purgePersonalData(ownerID: accountID)
-                let profileCleared = (try? offlineProfile?.clear()) != nil || offlineProfile == nil
+                var profileCleared = true
+                do { try offlineProfile?.clear() } catch { profileCleared = false }
                 message = cacheCleared && profileCleared
                     ? "Phiên đã kết thúc. Vui lòng đăng nhập lại."
                     : "Phiên đã kết thúc, nhưng chưa xóa hết dữ liệu trên iPhone. Mở khóa thiết bị và thử đăng xuất để dọn dữ liệu."
@@ -132,10 +133,13 @@ final class SessionViewModel {
         let id = UUID(); operation = id
         // An old offline profile must not survive an account switch even if
         // a Keychain write or delete fails: refuse login until cleanup works.
-        do {
-            try offlineProfile?.clear()
-            try OfflineNotebookCache.purgeAll(directory: offlineCacheDirectory)
-        } catch {
+        do { try offlineProfile?.clear() }
+        catch {
+            message = "Chưa dọn được hồ sơ phiên cũ trong Keychain. Mở khóa thiết bị rồi thử đăng nhập lại."
+            return
+        }
+        let oldOwner = navigation.ownerID
+        guard await purgePersonalData(ownerID: oldOwner) else {
             message = "Chưa dọn được dữ liệu phiên cũ trên iPhone. Mở khóa thiết bị rồi thử đăng nhập lại."
             return
         }
