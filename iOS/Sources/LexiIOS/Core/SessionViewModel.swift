@@ -216,20 +216,21 @@ final class SessionViewModel {
     }
 
     private func showRestorationError(_ error: any Error, signingIn: Bool = false) async {
+        let previousOwner = navigation.ownerID
         offlineSession = false
+        // Hide all private UI synchronously, BEFORE waiting for actor/file IO.
+        state = .unavailable
+        profileSessionID = nil
         switch error as? HTTPError {
         case .unauthorized, .forbidden:
-            let owner = navigation.ownerID
-            // Do not continue exposing locally cached data after explicit server
-            // rejection; refresh tokens may already be revoked.
-            _ = await purgePersonalData(ownerID: owner)
+            // Do not continue exposing cached data after explicit server rejection.
+            _ = await purgePersonalData(ownerID: previousOwner)
             try? offlineProfile?.clear()
         default: break
         }
         // Failure to read Keychain must not be interpreted as an absent session.
         do { state = try await session.hasSavedSession() ? .unavailable : .signedOut }
         catch { state = .unavailable }
-        profileSessionID = nil
         if let http = error as? HTTPError {
             switch http {
             case .unauthorized: message = signingIn ? "Email hoặc mật khẩu không đúng, hoặc phiên không còn hợp lệ." : "Phiên đã hết hạn. Vui lòng đăng nhập lại."
