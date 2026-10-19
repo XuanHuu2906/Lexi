@@ -164,6 +164,25 @@ struct OfflineNotebookTests {
         #expect(await cache.load() == nil)
     }
 
+    @Test func offlineAuthenticatedShellReadsNotebookAndDeckWithoutAnyNetworkCalls() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = OfflineNotebookCache(namespace: "api|offline-auth", directory: root)
+        try await cache.save(offlineFixture(25))
+        let api = OfflineListingSpy(words: offlineFixture(25), error: .network(-1009))
+        let words = WordListViewModel(api: api, cache: cache)
+        await words.loadOffline()
+        #expect(words.isOffline && words.items.count == 20 && words.total == 25)
+        await words.nextPage()
+        #expect(words.items.count == 25)
+        let flashcards = FlashcardsViewModel(
+            api: NotebookFlashcards(words: api, cache: cache), cache: cache)
+        await flashcards.load(mode: .guess, offlineOnly: true)
+        #expect(flashcards.deck?.offline == true)
+        #expect(flashcards.deck?.count == 10)
+        #expect(await api.reads == 0)
+    }
+
     @Test func interruptedFullDownloadDoesNotOverwriteEarlierGoodCache() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }

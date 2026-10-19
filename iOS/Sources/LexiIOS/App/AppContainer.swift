@@ -14,7 +14,9 @@ struct AppContainer {
         let actor = SessionActor(auth: AuthAPI(client: publicClient), store: store)
         let api = LexiAPI(client: APIClient(environment: environment, transport: transport, tokens: actor))
         self.api = api
-        self.session = SessionViewModel(session: actor, api: api.auth)
+        let profileStore = OfflineProfileStore(keychain: DeviceKeychainStore(
+            service: "app.lexi.ios.offline-profile." + environment.apiBaseURL.absoluteString))
+        self.session = SessionViewModel(session: actor, api: api.auth, offlineProfile: profileStore)
         self.health = HealthViewModel(client: api)
     }
 

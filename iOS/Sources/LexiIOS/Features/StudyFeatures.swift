@@ -14,7 +14,8 @@ final class StudyFeatures {
             namespace: api.client.environment.apiBaseURL.absoluteString + "|" + userID)
         self.store = store
         review = ReviewViewModel(api: api.review, store: store, changed: changed)
-        flashcards = FlashcardsViewModel(api: NotebookFlashcards(words: api.words, cache: cache), store: store)
+        flashcards = FlashcardsViewModel(api: NotebookFlashcards(words: api.words, cache: cache),
+                                        store: store, cache: cache)
         quiz = QuizViewModel(api: api.quiz, store: store, changed: changed)
     }
 

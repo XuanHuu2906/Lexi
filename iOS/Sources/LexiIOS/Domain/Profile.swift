@@ -6,7 +6,7 @@ enum TTSVoice: String, Codable, Sendable {
     var localeIdentifier: String { self == .enUS ? "en-US" : "en-GB" }
 }
 
-struct Settings: Decodable, Sendable, Equatable {
+struct Settings: Codable, Sendable, Equatable {
     let dailyGoal: Int
     let cefrLevel: CEFRLevel
     let topics: [String]
@@ -36,7 +36,7 @@ struct ApiUser: Decodable, Sendable {
     let updatedAt: String
 }
 
-struct ApiMe: Decodable, Sendable {
+struct ApiMe: Codable, Sendable {
     let id: String
     let email: String
     let provider: String
@@ -48,7 +48,7 @@ struct ApiMe: Decodable, Sendable {
     let streak: StreakSnapshot?
 }
 
-struct StreakSnapshot: Decodable, Sendable {
+struct StreakSnapshot: Codable, Sendable {
     let currentStreak: Int
     let longestStreak: Int
     let streakFreezes: Int

@@ -1,6 +1,8 @@
 import Foundation
 import Observation
 
+private enum OfflineDeckFailure: Error { case noSnapshot }
+
 @MainActor @Observable
 final class FlashcardsViewModel {
     private(set) var mode: FlashcardMode = .guess
@@ -18,6 +20,7 @@ final class FlashcardsViewModel {
     private(set) var meanings: [FlashcardSet.Card] = []
     var typedAnswer = ""
     private let api: any FlashcardServing
+    private let cache: OfflineNotebookCache?
     private let store: StudyCheckpointStore
     private var completedWords: [FlashcardScope: Set<String>] = [:]
     var roundFinished: Bool { deck?.cards.isEmpty == true && !(completedWords[requestedScope] ?? []).isEmpty }
@@ -32,14 +35,16 @@ final class FlashcardsViewModel {
         return mode == .match ? matched.count == deck.cards.count : index >= deck.cards.count
     }
 
-    init(api: any FlashcardServing, store: StudyCheckpointStore = StudyCheckpointStore()) {
-        self.api = api; self.store = store
+    init(api: any FlashcardServing, store: StudyCheckpointStore = StudyCheckpointStore(),
+         cache: OfflineNotebookCache? = nil) {
+        self.api = api; self.store = store; self.cache = cache
         for scope in FlashcardScope.allCases {
             completedWords[scope] = Set(store.value.completedFlashcards?[scope.rawValue] ?? [])
         }
     }
 
-    func load(mode: FlashcardMode? = nil, scope: FlashcardScope? = nil, restartRound: Bool = false) async {
+    func load(mode: FlashcardMode? = nil, scope: FlashcardScope? = nil,
+              restartRound: Bool = false, offlineOnly: Bool = false) async {
         guard active, feedback?.canRetry() != false else { return }
         if let mode { self.mode = mode }; if let scope { requestedScope = scope }
         if restartRound { completedWords[requestedScope] = []; saveRound() }
@@ -50,7 +55,18 @@ final class FlashcardsViewModel {
         defer { if operation == id { loading = false } }
         do {
             let excluded = completedWords[requestedScope] ?? []
-            let response = try await api.flashcards(mode: requestedMode, scope: requestedScope, limit: 10, excluding: excluded)
+            let response: FlashcardSet
+            if offlineOnly {
+                guard let snapshot = await cache?.load() else {
+                    throw OfflineDeckFailure.noSnapshot
+                }
+                response = NotebookFlashcards.makeDeck(
+                    words: snapshot.words, mode: requestedMode, scope: requestedScope,
+                    limit: 10, excluding: excluded, offline: true)
+            } else {
+                response = try await api.flashcards(mode: requestedMode, scope: requestedScope,
+                                                    limit: 10, excluding: excluded)
+            }
             try Task.checkCancellation()
             guard operation == id else { return }
             guard response.mode == requestedMode, response.count == response.cards.count,
@@ -67,7 +83,9 @@ final class FlashcardsViewModel {
             deck = response; meanings = response.cards.shuffled()
         } catch {
             guard operation == id, !isCancellation(error) else { return }
-            if case .validation = error as? HTTPError {
+            if error is OfflineDeckFailure {
+                feedback = FeatureFeedback(message: "Chưa có Flashcards đã lưu trên thiết bị. Hãy kết nối mạng và lưu sổ từ trước.")
+            } else if case .validation = error as? HTTPError {
                 feedback = FeatureFeedback(message: "Chưa thể tải bộ thẻ. Hãy kiểm tra sổ từ và thử lại.")
             } else { feedback = FeatureFeedback(error) }
         }

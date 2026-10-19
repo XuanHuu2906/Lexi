@@ -14,6 +14,7 @@ struct MainTabView: View {
     private let reminders = LocalReminderService.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var savingLookup = false
+    @State private var confirmingOfflineLogout = false
 
     init(model: SessionViewModel, me: ApiMe, navigation: AppNavigation, api: LexiAPI) {
         self.model = model; self.me = me; self.navigation = navigation; self.api = api
@@ -39,9 +40,30 @@ struct MainTabView: View {
                 .tag(tab)
             }
         }
+        .safeAreaInset(edge: .top) {
+            if model.offlineSession {
+                HStack(spacing: 12) {
+                    Label("Đang offline · Chỉ xem dữ liệu đã lưu", systemImage: "wifi.slash")
+                        .font(.caption)
+                    Spacer(minLength: 4)
+                    Button("Kết nối lại") { Task { await model.restore(force: true) } }
+                        .font(.caption.weight(.semibold))
+                        .disabled(model.busy)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(LexiColors.cloud100)
+                .accessibilityIdentifier("offline-session-banner")
+            }
+        }
         .privacySensitive()
+        .confirmationDialog("Đăng xuất và xóa dữ liệu offline trên thiết bị?", isPresented: $confirmingOfflineLogout,
+                            titleVisibility: .visible) {
+            Button("Đăng xuất", role: .destructive) { Task { await model.logout() } }
+            Button("Hủy", role: .cancel) {}
+        }
         .task {
-            savingLookup = model.pendingLookup != nil
+            savingLookup = model.pendingLookup != nil && !model.offlineSession
             await reminders.reconcile(userID: me.id, draft: me.setting.map(SettingsDraft.init))
         }
         .onDisappear {
@@ -58,6 +80,7 @@ struct MainTabView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task {
+                    guard !model.offlineSession else { return }
                     // Re-fetch account preferences on foreground, not in background;
                     // never overwrite an unsaved Settings form just to reschedule.
                     if !features.settings.dirty { await features.settings.load() }
@@ -66,8 +89,11 @@ struct MainTabView: View {
                 }
             }
         }
+        .onChange(of: model.offlineSession) { _, offline in
+            if offline { savingLookup = false }
+        }
         .sheet(isPresented: $savingLookup, onDismiss: { model.pendingLookup = nil }) {
-            if let input = model.pendingLookup {
+            if !model.offlineSession, let input = model.pendingLookup {
                 AddWordSheet(api: api.words, input: input, changed: features.invalidate)
             }
         }
@@ -81,6 +107,41 @@ struct MainTabView: View {
     }
 
     @ViewBuilder private func page(for tab: MainTab) -> some View {
+        if model.offlineSession {
+            switch tab {
+            case .vocabulary:
+                WordListView(model: features.words, api: api.words, session: model,
+                             revision: features.revision, changed: features.invalidate, offlineOnly: true)
+            case .review:
+                FlashcardsView(model: study.flashcards, locale: audioLocale, offlineOnly: true)
+            case .settings:
+                LexiPage {
+                    LexiCard {
+                        Label("Chế độ học offline", systemImage: "wifi.slash")
+                            .font(LexiTypography.heading)
+                        Text("Phiên đã xác thực trước đây đang được dùng tạm để xem dữ liệu đã lưu. Kết nối Internet để xác minh lại tài khoản và cập nhật bài học.")
+                        LexiButton(title: "Kiểm tra lại kết nối", isLoading: model.busy) {
+                            Task { await model.restore(force: true) }
+                        }
+                        LexiButton(title: "Đăng xuất khỏi thiết bị", variant: .destructive,
+                                   isLoading: model.busy) {
+                            confirmingOfflineLogout = true
+                        }
+                    }
+                }
+            case .home, .learn:
+                LexiPage {
+                    LexiCard {
+                        Text("Học offline").font(LexiTypography.title)
+                        Text("Chỉ có sổ từ đã tải và thẻ ghi nhớ. Không chấm phát âm, dùng AI hay cập nhật lịch ôn khi chưa xác minh lại phiên.")
+                        LexiButton(title: "Mở từ vựng") { navigation.selectedTab = .vocabulary }
+                        LexiButton(title: "Luyện Flashcards", variant: .secondary) {
+                            navigation.selectedTab = .review
+                        }
+                    }
+                }
+            }
+        } else {
         switch tab {
         case .home:
             DashboardView(model: features.dashboard, email: me.email, navigation: navigation, revision: features.revision)
@@ -96,9 +157,17 @@ struct MainTabView: View {
                          userID: me.id, reminders: reminders, offlineCache: offlineCache,
                          changed: features.invalidate)
         }
+        }
     }
 
     @ViewBuilder private func destination(_ route: AppRoute) -> some View {
+        if model.offlineSession {
+            LexiPage {
+                EmptyState(title: "Tính năng cần kết nối mạng",
+                           message: "Phiên hiện ở chế độ offline chỉ đọc. Chọn Từ vựng hoặc Ôn tập để sử dụng nội dung đã lưu.",
+                           symbol: "wifi.slash")
+            }
+        } else {
         switch route {
         case .word(let id):
             WordDetailView(id: id, api: api.words, locale: audioLocale, changed: features.invalidate)
@@ -135,6 +204,7 @@ struct MainTabView: View {
                         .foregroundStyle(LexiColors.textSecondary)
                 }
             }.navigationTitle("Về Lexi")
+        }
         }
     }
 }

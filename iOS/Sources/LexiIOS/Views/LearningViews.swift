@@ -104,6 +104,7 @@ struct WordListView: View {
     let session: SessionViewModel
     let revision: Int
     let changed: () -> Void
+    var offlineOnly = false
     @State private var add = false
     @State private var quickAdd = false
     @State private var filters = false
@@ -115,10 +116,10 @@ struct WordListView: View {
             Section {
                 NavigationLink { LookupView(api: api, session: session, changed: changed) } label: {
                     Label("Tra từ điển", systemImage: "magnifyingglass")
-                }.disabled(model.isOffline)
+                }.disabled(model.isOffline || offlineOnly)
                 Button { quickAdd = true } label: { Label("Thêm nhanh từ: nghĩa", systemImage: "sparkles") }
-                    .disabled(model.isOffline)
-                if !model.isOffline {
+                    .disabled(model.isOffline || offlineOnly)
+                if !model.isOffline && !offlineOnly {
                     Button {
                         Task { await model.saveForOffline() }
                     } label: {
@@ -155,7 +156,7 @@ struct WordListView: View {
             }
             Section("\(model.total) từ") {
                 ForEach(model.items) { word in
-                    if model.isOffline {
+                    if model.isOffline || offlineOnly {
                         WordRow(word: word, offline: true)
                     } else {
                         NavigationLink(value: AppRoute.word(id: word.id)) { WordRow(word: word) }
@@ -189,16 +190,25 @@ struct WordListView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { add = true } label: { Label("Thêm từ", systemImage: "plus") }
-                    .disabled(model.isOffline)
+                    .disabled(model.isOffline || offlineOnly)
             }
         }
-        .refreshable { await model.refresh() }
-        .task(id: ListRequest(query: model.query, revision: revision, attempt: attempt)) { await model.refresh(debounce: true) }
+        .refreshable { if offlineOnly { await model.loadOffline() } else { await model.refresh() } }
+        .task(id: ListRequest(query: model.query, revision: revision, attempt: attempt,
+                              offlineOnly: offlineOnly)) {
+            if offlineOnly { await model.loadOffline() }
+            else { await model.refresh(debounce: true) }
+        }
         .onChange(of: scenePhase) { _, phase in if phase == .active { attempt += 1 } }
         .sheet(isPresented: $add) { AddWordSheet(api: api, changed: changed) }
         .sheet(isPresented: $quickAdd) { QuickAddView(api: api, changed: changed) }
     }
-    private struct ListRequest: Equatable { let query: WordsQuery; let revision: Int; let attempt: Int }
+    private struct ListRequest: Equatable {
+        let query: WordsQuery
+        let revision: Int
+        let attempt: Int
+        let offlineOnly: Bool
+    }
 }
 
 struct WordRow: View {
