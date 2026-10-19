@@ -51,6 +51,9 @@ struct MainTabView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task {
+                    // Re-fetch account preferences on foreground, not in background;
+                    // never overwrite an unsaved Settings form just to reschedule.
+                    if !features.settings.dirty { await features.settings.load() }
                     await reminders.reconcile(userID: me.id,
                         draft: features.settings.baseline ?? me.setting.map(SettingsDraft.init))
                 }
