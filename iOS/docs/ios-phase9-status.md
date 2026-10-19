@@ -57,3 +57,10 @@ Triển khai ngày **19/10/2026**, working tree. **21/35 task có bằng chứng
 3. Học/Ôn tập → Nghe chép chính tả → tạo bài → Nghe/Nghe chậm → nhập → Kiểm tra → Câu tiếp theo.
 4. Thu một bản khác rồi về Home/chuyển nền: micro phải dừng; quay lại không còn bản ghi tạm. Thử quyền denied→Settings→allow nếu có thể.
 5. TTS ở silent mode, chuyển giữa từ, thay tốc độ/giọng; tiếp tục test Bluetooth/disconnect/cuộc gọi và VoiceOver.
+
+## Hardening bổ sung — branch `codex/phase9-audio-hardening-20261019` (19/10/2026)
+
+- Backend có `src/skills/wav-parser.ts`: ràng buộc RIFF length/chunk bounds, PCM16 mono 16 kHz, <=5 MiB trước khi gọi Azure SDK; malformed upload trả 422 thay vì để parser đọc vượt buffer.
+- Thêm `src/skills/wav-parser.spec.ts` cho valid WAV và nhiều trường hợp WAV lỗi; hạn chế log raw provider error details trong `azure-speech.service.ts`.
+- Checklist thử iPhone, Azure, Bluetooth, Dictation và privacy: [phase9-device-acceptance.md](phase9-device-acceptance.md).
+- **Chưa chạy được Swift/xtool 6.4 hoặc Jest/backend build trên máy phát triển của người dùng trong lần thay đổi này.** Chưa có bằng chứng live mới; 21/35 là số trong báo cáo trước và exit gate Phase 9 vẫn mở. Chỉ cập nhật tỷ lệ sau khi có kết quả thực.
