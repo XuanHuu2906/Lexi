@@ -51,6 +51,9 @@ struct OfflineNotebookTests {
         #expect(await a.load() == nil)
         let newSession = OfflineNotebookCache(namespace: "https://api.test|user-A", directory: root)
         #expect(await newSession.load() == nil)
+        await #expect(throws: OfflineNotebookCache.CacheFailure.closed) {
+            try await a.save(offlineFixture(1))
+        }
     }
 
     @Test func TTLRejectsExpiredFutureOrCorruptDataAndBudgetNeverTruncates() async throws {
@@ -66,6 +69,9 @@ struct OfflineNotebookTests {
             try await cache.save(offlineFixture(OfflineNotebookCache.maximumWords + 1))
         }
         #expect(await cache.load(now: now.addingTimeInterval(1))?.words.count == 10)
+        let file = try #require(FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil).first)
+        try Data("corrupt snapshot".utf8).write(to: file)
+        #expect(await cache.load(now: now.addingTimeInterval(1)) == nil)
     }
 
     @Test func cachedListCanFilterAndPageButCannotMasqueradeAsFreshServerData() async throws {
@@ -120,6 +126,19 @@ struct OfflineNotebookTests {
         await #expect(throws: HTTPError.unauthorized(nil)) {
             _ = try await flashcards.flashcards(mode: .guess, scope: .due, limit: 10, excluding: [])
         }
+    }
+
+    @Test func oversizedNotebookStopsBeforeReadingAllPagesAndNeverSavesPartialCache() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = OfflineNotebookCache(namespace: "api|oversized", directory: root)
+        let api = OfflineListingSpy(words: offlineFixture(OfflineNotebookCache.maximumWords + 1))
+        let model = WordListViewModel(api: api, cache: cache,
+                                      notebook: NotebookFlashcards(words: api, cache: cache))
+        await model.saveForOffline()
+        #expect(model.offlineMessage?.contains("giới hạn") == true)
+        #expect(await cache.load() == nil)
+        #expect(await api.reads == 1)
     }
 
     @Test func interruptedFullDownloadDoesNotOverwriteEarlierGoodCache() async throws {
