@@ -18,9 +18,9 @@ Azure Speech/Pronunciation của Phase 9 **được tạm hoãn theo yêu cầu*
 | IOS-1008 | Đã chốt ADR | Local notifications cho V1, APNs không bật mặc định. |
 | IOS-1009–1016 | Hoãn | Cần entitlement, backend token/APNs channel và integration proof. |
 | IOS-1017 | Đã viết ADR | Offline V1 chỉ read-only cached words/flashcards, không chấm SRS offline. |
-| IOS-1018–1024 | Chưa làm | Chọn persistence, cache per-user, TTL/stale/cleanup, offline UI, sync đọc lại server. |
+| IOS-1018–1024 | Có code, chưa nghiệm thu | Cache JSON Codable per user; 1.000 từ/2 MiB, TTL 30 ngày, chỉ đọc offline với local filter/page; Flashcards lưu snapshot đầy đủ khi online, Từ vựng tải thủ công; xóa khi rời session. Cần Swift tests/xtool build và QA iPhone. |
 | IOS-1025–1026 | Đã quyết định policy | Không offline mutations chưa có idempotency; không kỳ vọng Background App Refresh đúng phút. |
-| IOS-1027 | Chưa đo | Battery/network/background load chưa nghiệm thu. |
+| IOS-1027 | Chưa đo | Cache không polling; battery/network/disk thực tế chưa nghiệm thu. |
 
 ## Verification
 
@@ -48,3 +48,22 @@ xtool dev
 6. Kiểm tra logout rồi login user khác: không nhận nhắc theo cài đặt user cũ.
 
 **Lưu ý:** Do ngày/giờ ở tầng hệ thống, không có bảo đảm notification được giao đúng đến từng phút.
+
+
+## Offline cache — lượt triển khai tiếp theo (PR riêng)
+
+- Đã thêm `OfflineNotebookCache.swift` dùng file-backed Codable snapshot hoàn chỉnh (không tự sinh dữ liệu), isolation bằng backend origin + user ID, lưu `savedAt`, 30 ngày TTL, giới hạn 1.000 từ/2 MiB, iOS FileProtection complete.
+- `NotebookFlashcards` chỉ fallback cache nếu mất mạng/timeout; vẫn yêu cầu đủ trang trước khi lưu snapshot mới. `WordListViewModel` có nút chủ động tải offline, local search/filter/page và cảnh báo chỉ xem, không tải detail/edit khi offline. Không xử lý 401/403 bằng cache.
+- Có `OfflineNotebookTests.swift` cho account isolation, cleanup, TTL, giới hạn, offline paging, auth guard, reconnect và no-partial-cache. **Chưa chạy SwiftPM suite và xtool build của PR này trên WSL/iPhone**, không tuyên bố PASS hoặc exit gate đã đóng.
+- Xem [ADR-010](adr-010-local-reminders-offline.md) để biết phạm vi V1, giới hạn dung lượng và những thay đổi chưa được phép đồng bộ.
+
+### Kiểm tra trên iPhone sau khi có build PASS
+
+1. Online → **Từ vựng → Lưu sổ từ để xem offline** → chờ thành công; hoặc mở Flashcards để làm đầy cache tự động. Đảm bảo ứng dụng đã tải **hết** sổ từ trước khi ngắt mạng.
+2. Bật Airplane mode, tắt Wi-Fi → mở Từ vựng; màn chỉ hiển thị bản cache và banner offline, không cho thêm/tra từ qua API hoặc chấm SRS. Kiểm thử tìm từ, bộ lọc, Tải thêm từ cache.
+3. Vào Ôn tập → Flashcards, chọn chế độ và luyện; thấy banner **luyện offline, không thay đổi SRS**, không nhận điểm server.
+4. Bật mạng và kéo xuống Từ vựng → nhận nội dung mới nhất từ server; Flashcards tải lại dữ liệu server thay vì reapply các bài luyện offline.
+5. Đăng xuất, đăng nhập tài khoản khác rồi tắt mạng → không thấy cache tài khoản cũ. Thử force-quit/relaunch khi offline sau khi đã đăng nhập trước đó và kiểm tra behavior; đăng xuất phải xóa file.
+6. Thử cache quá giới hạn/quá 30 ngày/mất mạng giữa tải/không gian đĩa thiếu; không báo lưu thành công khi snapshot chỉ có một phần.
+
+**Azure Speech vẫn hoãn; APNs/Background Tasks và offline SRS mutation vẫn ngoài phạm vi.**
