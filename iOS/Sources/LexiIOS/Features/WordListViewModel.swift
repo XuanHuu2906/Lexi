@@ -78,6 +78,12 @@ final class WordListViewModel {
                     return
                 }
             }
+            // If cached mode can no longer be authorized/validated, do not
+            // keep previously displayed offline data across a 401/403 or TTL.
+            if isOffline {
+                isOffline = false; offlineSavedAt = nil; offlineWords = []
+                items = []; total = 0; page = 0
+            }
             feedback = FeatureFeedback(error); phase = items.isEmpty ? .failed : .stale
         }
     }
