@@ -82,7 +82,9 @@ final class LocalReminderService {
             }
             return
         }
-        guard generation == ticket && ownerID == userID else { return }
+        // The iOS permission sheet can briefly change scenePhase while open.
+        // Allow the still-active account to reconcile after permission returns.
+        guard ownerID == userID else { return }
         await reconcile(userID: userID, draft: draft)
     }
 
