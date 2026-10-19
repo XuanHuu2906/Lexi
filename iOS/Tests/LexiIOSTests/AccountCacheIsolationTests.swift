@@ -102,6 +102,57 @@ struct AccountCacheIsolationTests {
         await cacheOld.close(clear: false)
     }
 
+    @Test func terminal401PurgesNotebookAndCheckpointEvenWithoutSwiftUIOnDisappear() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lexi-auth-revoked-" + UUID().uuidString)
+        let suiteName = "lexi-revoked-checkpoint-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer {
+            try? FileManager.default.removeItem(at: root)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+        let token = MemoryKeychain(String(repeating: "a", count: 64))
+        let identity = MemoryKeychain()
+        let session = SessionActor(auth: AuthDouble(), store: token)
+        let transport = MockTransport([
+            .response(200, try Fixtures.body("user_with_relations")),
+            .response(401, Data()), .response(401, Data())
+        ])
+        let environment = try AppEnvironment(baseURL: apiOrigin, flavor: .staging)
+        let client = APIClient(environment: environment, transport: transport, tokens: session)
+        let model = SessionViewModel(session: session, api: AuthAPI(client: client),
+            offlineProfile: OfflineProfileStore(keychain: identity),
+            offlineCacheDirectory: root, checkpointDefaults: defaults)
+        let observer = Task { await model.observeInvalidations() }
+        defer { observer.cancel() }
+        await model.restore()
+        let ownerA = try #require(model.navigation.ownerID)
+        let namespaceA = environment.apiBaseURL.absoluteString + "|" + ownerA
+        let cacheA = OfflineNotebookCache(namespace: namespaceA, directory: root)
+        try await cacheA.save([fixtureWord("A", owner: "A")])
+        model.registerNotebook(cacheA, userID: ownerA)
+        let checkpointA = StudyCheckpointStore(defaults: defaults, namespace: namespaceA)
+        checkpointA.update { $0.uncertainReviews["revoked-private-word"] = "pending" }
+
+        await #expect(throws: HTTPError.unauthorized(nil)) {
+            let _: EmptyResponse = try await client.send(
+                APIEndpoint(path: ["words"], retry: .never))
+        }
+        for _ in 0..<2_000 {
+            if model.message?.contains("Phiên đã kết thúc") == true { break }
+            await Task.yield()
+        }
+        #expect(model.navigation.ownerID == nil && model.navigation.paths.isEmpty)
+        #expect(try token.read() == nil)
+        #expect(try identity.read() == nil)
+        #expect(await OfflineNotebookCache(namespace: namespaceA, directory: root).load() == nil)
+        #expect(StudyCheckpointStore(defaults: defaults, namespace: namespaceA)
+            .value.uncertainReviews.isEmpty)
+        await #expect(throws: OfflineNotebookCache.CacheFailure.closed) {
+            try await cacheA.save([fixtureWord("late", owner: "A")])
+        }
+    }
+
     @Test func failedOfflineProfileDeletionPreventsAccountSwitchAndIsNotReportedAsCleanLogout() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("lexi-profile-failure-" + UUID().uuidString)
