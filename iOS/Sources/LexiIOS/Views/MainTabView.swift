@@ -39,6 +39,22 @@ struct MainTabView: View {
                 .tag(tab)
             }
         }
+        .safeAreaInset(edge: .top) {
+            if model.offlineSession {
+                HStack(spacing: 12) {
+                    Label("Đang offline · Chỉ xem dữ liệu đã lưu", systemImage: "wifi.slash")
+                        .font(.caption)
+                    Spacer(minLength: 4)
+                    Button("Kết nối lại") { Task { await model.restore(force: true) } }
+                        .font(.caption.weight(.semibold))
+                        .disabled(model.busy)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(LexiColors.cloud100)
+                .accessibilityIdentifier("offline-session-banner")
+            }
+        }
         .privacySensitive()
         .task {
             savingLookup = model.pendingLookup != nil
@@ -58,6 +74,7 @@ struct MainTabView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task {
+                    guard !model.offlineSession else { return }
                     // Re-fetch account preferences on foreground, not in background;
                     // never overwrite an unsaved Settings form just to reschedule.
                     if !features.settings.dirty { await features.settings.load() }
@@ -81,6 +98,41 @@ struct MainTabView: View {
     }
 
     @ViewBuilder private func page(for tab: MainTab) -> some View {
+        if model.offlineSession {
+            switch tab {
+            case .vocabulary:
+                WordListView(model: features.words, api: api.words, session: model,
+                             revision: features.revision, changed: features.invalidate, offlineOnly: true)
+            case .review:
+                FlashcardsView(model: study.flashcards, locale: audioLocale, offlineOnly: true)
+            case .settings:
+                LexiPage {
+                    LexiCard {
+                        Label("Chế độ học offline", systemImage: "wifi.slash")
+                            .font(LexiTypography.heading)
+                        Text("Phiên đã xác thực trước đây đang được dùng tạm để xem dữ liệu đã lưu. Kết nối Internet để xác minh lại tài khoản và cập nhật bài học.")
+                        LexiButton(title: "Kiểm tra lại kết nối", isLoading: model.busy) {
+                            Task { await model.restore(force: true) }
+                        }
+                        LexiButton(title: "Đăng xuất khỏi thiết bị", variant: .destructive,
+                                   isLoading: model.busy) {
+                            Task { await model.logout() }
+                        }
+                    }
+                }
+            case .home, .learn:
+                LexiPage {
+                    LexiCard {
+                        Text("Học offline").font(LexiTypography.title)
+                        Text("Chỉ có sổ từ đã tải và thẻ ghi nhớ. Không chấm phát âm, dùng AI hay cập nhật lịch ôn khi chưa xác minh lại phiên.")
+                        LexiButton(title: "Mở từ vựng") { navigation.selectedTab = .vocabulary }
+                        LexiButton(title: "Luyện Flashcards", variant: .secondary) {
+                            navigation.selectedTab = .review
+                        }
+                    }
+                }
+            }
+        } else {
         switch tab {
         case .home:
             DashboardView(model: features.dashboard, email: me.email, navigation: navigation, revision: features.revision)
@@ -95,6 +147,7 @@ struct MainTabView: View {
             SettingsView(model: features.settings, session: model, email: me.email,
                          userID: me.id, reminders: reminders, offlineCache: offlineCache,
                          changed: features.invalidate)
+        }
         }
     }
 
