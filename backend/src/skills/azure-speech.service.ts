@@ -7,52 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
 import type { AzureAssessment } from '../ai/features/pronunciation';
-
-interface WavInfo {
-  sampleRate: number;
-  bitsPerSample: number;
-  channels: number;
-  data: Buffer;
-}
-
-/**
- * Parse a canonical PCM WAV buffer into its format + raw sample data. We feed
- * the PCM into Azure via a push stream with a matching format, which avoids the
- * File/DOM dependency of `AudioConfig.fromWavFileInput` and any server-side
- * transcoding. Walks the RIFF chunks rather than assuming a fixed 44-byte header.
- */
-function parseWav(buf: Buffer): WavInfo {
-  if (
-    buf.length < 44 ||
-    buf.toString('ascii', 0, 4) !== 'RIFF' ||
-    buf.toString('ascii', 8, 12) !== 'WAVE'
-  ) {
-    throw new UnprocessableEntityException('Invalid WAV audio');
-  }
-  let offset = 12;
-  let fmt: Omit<WavInfo, 'data'> | null = null;
-  let data: Buffer | null = null;
-  while (offset + 8 <= buf.length) {
-    const id = buf.toString('ascii', offset, offset + 4);
-    const size = buf.readUInt32LE(offset + 4);
-    const body = offset + 8;
-    if (id === 'fmt ') {
-      fmt = {
-        channels: buf.readUInt16LE(body + 2),
-        sampleRate: buf.readUInt32LE(body + 4),
-        bitsPerSample: buf.readUInt16LE(body + 14),
-      };
-    } else if (id === 'data') {
-      data = buf.subarray(body, Math.min(body + size, buf.length));
-    }
-    // RIFF chunks are word-aligned (pad byte when size is odd).
-    offset = body + size + (size % 2);
-  }
-  if (!fmt || !data) {
-    throw new UnprocessableEntityException('WAV missing fmt/data chunk');
-  }
-  return { ...fmt, data };
-}
+import { parseWav } from './wav-parser';
 
 /**
  * Wraps Azure Speech's Pronunciation Assessment. Used only by the pronunciation
@@ -137,9 +92,7 @@ export class AzureSpeechService {
               );
             } else if (result.reason === sdk.ResultReason.Canceled) {
               const cancel = sdk.CancellationDetails.fromResult(result);
-              this.logger.error(
-                `Azure assessment canceled: ${cancel.reason} ${cancel.errorDetails}`,
-              );
+              this.logger.warn(`Azure assessment canceled: ${cancel.reason}`);
               reject(
                 new ServiceUnavailableException({
                   message: 'Pronunciation assessment failed, please try again',
@@ -162,7 +115,7 @@ export class AzureSpeechService {
         },
         (err) => {
           recognizer.close();
-          this.logger.error(`Azure recognizeOnce error: ${String(err)}`);
+          this.logger.error('Azure recognizeOnce request failed');
           reject(
             new ServiceUnavailableException({
               message: 'Pronunciation assessment failed, please try again',
@@ -198,7 +151,7 @@ export class AzureSpeechService {
     ) {
       return err;
     }
-    this.logger.error(`Unexpected Azure error: ${String(err)}`);
+    this.logger.error('Unexpected Azure assessment failure');
     return new ServiceUnavailableException({
       message: 'Pronunciation assessment failed, please try again',
       retryable: true,
