@@ -21,14 +21,43 @@ final class SessionViewModel {
     private let api: AuthAPI
     private let clock: any APIClock
     private let offlineProfile: OfflineProfileStore?
+    private let offlineCacheDirectory: URL?
+    private var activeNotebook: (owner: String, cache: OfflineNotebookCache)?
     private var operation = UUID()
     private var profileSessionID: UUID?
     private var lastCheck: Date?
 
     init(session: SessionActor, api: AuthAPI, clock: any APIClock = SystemAPIClock(),
-         offlineProfile: OfflineProfileStore? = nil) {
+         offlineProfile: OfflineProfileStore? = nil, offlineCacheDirectory: URL? = nil) {
         self.session = session; self.api = api; self.clock = clock
         self.offlineProfile = offlineProfile
+        self.offlineCacheDirectory = offlineCacheDirectory
+    }
+
+    /// Register the *same* writer actor as the authenticated shell. It must
+    /// close before any logout purge to prevent an in-flight save resurrecting
+    /// a deleted account's notebook.
+    func registerNotebook(_ cache: OfflineNotebookCache, userID: String) {
+        guard navigation.ownerID == userID else { return }
+        activeNotebook = (userID, cache)
+    }
+
+    /// Failure is visible to the caller. Do not claim that logout removed
+    /// private data when iOS file protection or disk errors prevented it.
+    private func purgePersonalData(ownerID: String?) async -> Bool {
+        var succeeded = true
+        if let activeNotebook {
+            self.activeNotebook = nil
+            do { try await activeNotebook.cache.purge() }
+            catch { succeeded = false }
+        }
+        do { try OfflineNotebookCache.purgeAll(directory: offlineCacheDirectory) }
+        catch { succeeded = false }
+        if let ownerID {
+            let namespace = api.client.environment.apiBaseURL.absoluteString + "|" + ownerID
+            StudyCheckpointStore(defaults: .standard, namespace: namespace).close(clear: true)
+        }
+        return succeeded
     }
 
     func clearFeedback() {
@@ -40,12 +69,16 @@ final class SessionViewModel {
         for await id in session.invalidations {
             guard !Task.isCancelled else { return }
             if profileSessionID == id {
+                let accountID = navigation.ownerID
                 pendingLookup = nil
                 profileSessionID = nil
                 offlineSession = false
-                try? offlineProfile?.clear()
                 state = .signedOut
-                message = "Phiên đã kết thúc. Vui lòng đăng nhập lại."
+                let cacheCleared = await purgePersonalData(ownerID: accountID)
+                let profileCleared = (try? offlineProfile?.clear()) != nil || offlineProfile == nil
+                message = cacheCleared && profileCleared
+                    ? "Phiên đã kết thúc. Vui lòng đăng nhập lại."
+                    : "Phiên đã kết thúc, nhưng chưa xóa hết dữ liệu trên iPhone. Mở khóa thiết bị và thử đăng xuất để dọn dữ liệu."
             }
         }
     }
@@ -61,9 +94,11 @@ final class SessionViewModel {
         defer { if operation == id { busy = false } }
         do {
             guard try await session.hasSavedSession() else {
+                let accountID = navigation.ownerID
                 offlineSession = false
-                try? offlineProfile?.clear()
                 state = .signedOut
+                _ = await purgePersonalData(ownerID: accountID)
+                try? offlineProfile?.clear()
                 return
             }
             // Proactively refresh only when needed; a fresh access token stays in memory.
@@ -95,8 +130,16 @@ final class SessionViewModel {
             return
         }
         let id = UUID(); operation = id
+        // An old offline profile must not survive an account switch even if
+        // a Keychain write or delete fails: refuse login until cleanup works.
+        do {
+            try offlineProfile?.clear()
+            try OfflineNotebookCache.purgeAll(directory: offlineCacheDirectory)
+        } catch {
+            message = "Chưa dọn được dữ liệu phiên cũ trên iPhone. Mở khóa thiết bị rồi thử đăng nhập lại."
+            return
+        }
         profileSessionID = nil; offlineSession = false
-        try? offlineProfile?.clear()
         state = .signedOut; busy = true; message = nil
         defer { if operation == id { busy = false } }
         do {
@@ -122,22 +165,19 @@ final class SessionViewModel {
         else { accountID = try? offlineProfile?.load(at: clock.now())?.id }
         let id = UUID(); operation = id
         profileSessionID = nil; offlineSession = false
-        // Invalidate private UI synchronously BEFORE awaiting any cache cleanup.
+        // Remove personal UI synchronously before any asynchronous disk work.
         state = .signedOut; busy = true; message = nil; retryAfter = nil
-        try? offlineProfile?.clear()
-        if let accountID {
-            // Works even when no authenticated SwiftUI shell was mounted.
-            await OfflineNotebookCache(namespace: api.client.environment.apiBaseURL.absoluteString
-                + "|" + accountID).close(clear: true)
-        }
+        let cacheCleared = await purgePersonalData(ownerID: accountID)
+        var profileCleared = true
+        do { try offlineProfile?.clear() } catch { profileCleared = false }
         let report = await session.logout()
         guard operation == id else { return }
         busy = false
-        if !report.localCleared {
+        if !report.localCleared || !cacheCleared || !profileCleared {
             state = .unavailable
-            message = "Chưa xóa được phiên khỏi Keychain. Mở khóa thiết bị và thử đăng xuất lại."
+            message = "Chưa xóa hết phiên hoặc dữ liệu học trên iPhone. Mở khóa thiết bị và bấm Đăng xuất khỏi thiết bị để thử dọn lại."
         } else if !report.remoteRevoked {
-            message = "Đã xóa phiên trên thiết bị; chưa xác nhận thu hồi phiên trên máy chủ do lỗi kết nối."
+            message = "Đã xóa phiên và dữ liệu trên thiết bị; chưa xác nhận thu hồi phiên trên máy chủ do lỗi kết nối."
         }
     }
 
@@ -170,8 +210,15 @@ final class SessionViewModel {
 
     private func showRestorationError(_ error: any Error, signingIn: Bool = false) async {
         offlineSession = false
-        if case .unauthorized = error as? HTTPError { try? offlineProfile?.clear() }
-        if case .forbidden = error as? HTTPError { try? offlineProfile?.clear() }
+        switch error as? HTTPError {
+        case .unauthorized, .forbidden:
+            let owner = navigation.ownerID
+            // Do not continue exposing locally cached data after explicit server
+            // rejection; refresh tokens may already be revoked.
+            _ = await purgePersonalData(ownerID: owner)
+            try? offlineProfile?.clear()
+        default: break
+        }
         // Failure to read Keychain must not be interpreted as an absent session.
         do { state = try await session.hasSavedSession() ? .unavailable : .signedOut }
         catch { state = .unavailable }
