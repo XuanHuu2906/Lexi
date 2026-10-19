@@ -21,8 +21,10 @@ struct LocalReminderPlan: Equatable, Sendable {
 
     var dateComponents: DateComponents {
         var components = DateComponents()
-        components.calendar = Calendar(identifier: .gregorian)
-        components.timeZone = TimeZone(identifier: timeZoneID)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: timeZoneID) ?? .gmt
+        components.calendar = calendar
+        components.timeZone = calendar.timeZone
         components.hour = hour
         components.minute = minute
         return components
