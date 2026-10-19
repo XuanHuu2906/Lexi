@@ -7,6 +7,7 @@ struct SettingsView: View {
     let email: String
     let userID: String
     let reminders: LocalReminderService
+    let offlineCache: OfflineNotebookCache
     let changed: () -> Void
     @State private var confirmingLogout = false
     @State private var confirmingReload = false
@@ -146,7 +147,14 @@ struct SettingsView: View {
             Button("Tiếp tục chỉnh sửa", role: .cancel) {}
         }
         .confirmationDialog("Đăng xuất khỏi Lexi?", isPresented: $confirmingLogout, titleVisibility: .visible) {
-            Button("Đăng xuất", role: .destructive) { Task { await session.logout() } }
+            Button("Đăng xuất", role: .destructive) {
+                Task {
+                    // Await protected-cache deletion before ending the auth UI;
+                    // do not rely only on a later SwiftUI onDisappear callback.
+                    await offlineCache.close(clear: true)
+                    await session.logout()
+                }
+            }
             Button("Hủy", role: .cancel) {}
         } message: { Text("Dữ liệu đã lưu vẫn được giữ trên tài khoản. Các thay đổi chưa lưu sẽ bị bỏ.") }
     }
