@@ -110,11 +110,9 @@ struct OfflineNotebookTests {
         let cache = OfflineNotebookCache(namespace: "api|flashcards", directory: root)
         let api = OfflineListingSpy(words: offlineFixture(125))
         let flashcards = NotebookFlashcards(words: api, cache: cache)
-        constCheck: do {
-            let online = try await flashcards.flashcards(mode: .guess, scope: .due, limit: 10, excluding: [])
-            #expect(!online.offline && online.count == 10)
-            #expect(await cache.load()?.words.count == 125)
-        }
+        let online = try await flashcards.flashcards(mode: .guess, scope: .due, limit: 10, excluding: [])
+        #expect(!online.offline && online.count == 10)
+        #expect(await cache.load()?.words.count == 125)
         await api.fail(.timeout)
         let offline = try await flashcards.flashcards(mode: .guess, scope: .due, limit: 10, excluding: [])
         #expect(offline.offline && offline.count == 10)
