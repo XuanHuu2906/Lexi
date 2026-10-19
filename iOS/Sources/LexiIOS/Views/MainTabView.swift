@@ -93,7 +93,8 @@ struct MainTabView: View {
             LearnHomeView()
         case .settings:
             SettingsView(model: features.settings, session: model, email: me.email,
-                         userID: me.id, reminders: reminders, changed: features.invalidate)
+                         userID: me.id, reminders: reminders, offlineCache: offlineCache,
+                         changed: features.invalidate)
         }
     }
 
