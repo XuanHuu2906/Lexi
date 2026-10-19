@@ -83,6 +83,12 @@ final class SessionViewModel {
         for await id in session.invalidations {
             guard !Task.isCancelled else { return }
             if profileSessionID == id {
+                // Keep the login form disabled until stale account cleanup
+                // completes. No new account can race a late 401 purge.
+                let cleanupOperation = UUID()
+                operation = cleanupOperation
+                busy = true
+                defer { if operation == cleanupOperation { busy = false } }
                 let accountID = navigation.ownerID
                 pendingLookup = nil
                 profileSessionID = nil
