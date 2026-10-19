@@ -38,7 +38,7 @@ struct NotebookFlashcards: FlashcardServing {
         switch error as? HTTPError { case .network, .timeout: true; default: false }
     }
 
-    func fetchNotebook() async throws -> [Word] {
+    func fetchNotebook(maxWords: Int? = nil) async throws -> [Word] {
         var all: [Word] = []
         var ids = Set<String>()
         var query = WordsQuery(sort: .oldest, limit: 100)
@@ -48,8 +48,10 @@ struct NotebookFlashcards: FlashcardServing {
             try Task.checkCancellation()
             guard page.page == query.page, page.limit == query.limit, page.total >= 0,
                   page.items.count <= query.limit else { throw HTTPError.invalidResponse }
+            if let maxWords, page.total > maxWords { throw OfflineNotebookCache.CacheFailure.tooLarge }
             let fresh = page.items.filter { ids.insert($0.id).inserted }
             all += fresh
+            if let maxWords, all.count > maxWords { throw OfflineNotebookCache.CacheFailure.tooLarge }
             if page.page * page.limit >= page.total { break }
             // Fail instead of showing a false end-of-round if pagination stops advancing.
             guard !fresh.isEmpty else { throw HTTPError.invalidResponse }
