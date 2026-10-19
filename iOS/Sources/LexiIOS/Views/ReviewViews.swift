@@ -90,6 +90,7 @@ struct ReviewView: View {
 struct FlashcardsView: View {
     @Bindable var model: FlashcardsViewModel
     let locale: String
+    var offlineOnly = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dismiss) private var dismiss
@@ -129,7 +130,7 @@ struct FlashcardsView: View {
                                     : deck.cards.isEmpty ? "Thêm từ vào sổ từ rồi quay lại nhé." : "\(model.correctCount)/\(deck.count) câu đúng trong lượt luyện này.",
                                    symbol: "rectangle.stack.badge.checkmark")
                         if model.roundFinished {
-                            LexiButton(title: "Bắt đầu vòng mới") { Task { await model.load(restartRound: true) } }
+                            LexiButton(title: "Bắt đầu vòng mới") { Task { await model.load(restartRound: true, offlineOnly: offlineOnly) } }
                         } else {
                             LexiButton(title: deck.cards.isEmpty ? "Tải lại sổ từ" : "Luyện thẻ mới") { attempt += 1 }
                         }
@@ -141,7 +142,7 @@ struct FlashcardsView: View {
         }
         .navigationTitle("Thẻ ghi nhớ")
         .task(id: "\(mode.rawValue)-\(scope.rawValue)-\(attempt)") {
-            speech.stop(); await model.load(mode: mode, scope: scope)
+            speech.stop(); await model.load(mode: mode, scope: scope, offlineOnly: offlineOnly)
         }
         .onDisappear { speech.stop() }
         .onChange(of: scenePhase) { _, phase in if phase != .active { speech.stop() } }
