@@ -13,7 +13,9 @@ struct SessionRootView: View {
                     .task { await model.observeInvalidations() }
                     .task { await model.restore() }
                     .onChange(of: scenePhase) { _, phase in
-                        if phase == .active { Task { await model.restore() } }
+                        if phase == .active {
+                            Task { await model.restore(force: model.offlineSession) }
+                        }
                     }
                     .onChange(of: reminderTap.pendingReview) { _, _ in
                         reminderTap.routeIfPossible(model.navigation)
