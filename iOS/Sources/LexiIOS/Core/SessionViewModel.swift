@@ -15,16 +15,20 @@ final class SessionViewModel {
     var pendingLookup: WordInput?
     private(set) var busy = false
     private(set) var message: String?
+    private(set) var offlineSession = false
     private(set) var retryAfter: Date?
     private let session: SessionActor
     private let api: AuthAPI
     private let clock: any APIClock
+    private let offlineProfile: OfflineProfileStore?
     private var operation = UUID()
     private var profileSessionID: UUID?
     private var lastCheck: Date?
 
-    init(session: SessionActor, api: AuthAPI, clock: any APIClock = SystemAPIClock()) {
+    init(session: SessionActor, api: AuthAPI, clock: any APIClock = SystemAPIClock(),
+         offlineProfile: OfflineProfileStore? = nil) {
         self.session = session; self.api = api; self.clock = clock
+        self.offlineProfile = offlineProfile
     }
 
     func clearFeedback() {
@@ -38,6 +42,8 @@ final class SessionViewModel {
             if profileSessionID == id {
                 pendingLookup = nil
                 profileSessionID = nil
+                offlineSession = false
+                try? offlineProfile?.clear()
                 state = .signedOut
                 message = "Phiên đã kết thúc. Vui lòng đăng nhập lại."
             }
@@ -54,15 +60,24 @@ final class SessionViewModel {
         busy = true; message = nil
         defer { if operation == id { busy = false } }
         do {
-            guard try await session.hasSavedSession() else { state = .signedOut; return }
+            guard try await session.hasSavedSession() else {
+                offlineSession = false
+                try? offlineProfile?.clear()
+                state = .signedOut
+                return
+            }
             // Proactively refresh only when needed; a fresh access token stays in memory.
             _ = try await session.credential()
             let sessionID = await session.currentID()
             let me = try await api.me()
             guard operation == id, sessionID == (await session.currentID()) else { return }
-            profileSessionID = sessionID; state = .authenticated(me)
+            profileSessionID = sessionID
+            try? offlineProfile?.save(me, at: clock.now())
+            offlineSession = false
+            state = .authenticated(me)
         } catch {
             guard operation == id else { return }
+            if await restoreOfflineIfAllowed(error) { return }
             await showRestorationError(error)
         }
     }
@@ -80,7 +95,9 @@ final class SessionViewModel {
             return
         }
         let id = UUID(); operation = id
-        profileSessionID = nil; state = .signedOut; busy = true; message = nil
+        profileSessionID = nil; offlineSession = false
+        try? offlineProfile?.clear()
+        state = .signedOut; busy = true; message = nil
         defer { if operation == id { busy = false } }
         do {
             try await session.signIn(MobileCredentials(email: email, password: password), register: register)
@@ -88,7 +105,10 @@ final class SessionViewModel {
             let sessionID = await session.currentID()
             let me = try await api.me()
             guard operation == id, sessionID == (await session.currentID()) else { return }
-            profileSessionID = sessionID; state = .authenticated(me); lastCheck = clock.now()
+            profileSessionID = sessionID
+            try? offlineProfile?.save(me, at: clock.now())
+            offlineSession = false
+            state = .authenticated(me); lastCheck = clock.now()
         } catch {
             guard operation == id else { return }
             await showRestorationError(error, signingIn: true)
@@ -97,8 +117,18 @@ final class SessionViewModel {
 
     func logout() async {
         pendingLookup = nil
+        let accountID: String?
+        if case .authenticated(let me) = state { accountID = me.id }
+        else { accountID = try? offlineProfile?.load(at: clock.now())?.id }
+        try? offlineProfile?.clear()
+        if let accountID {
+            // Works even when no authenticated SwiftUI shell was mounted.
+            await OfflineNotebookCache(namespace: api.client.environment.apiBaseURL.absoluteString
+                + "|" + accountID).close(clear: true)
+        }
         let id = UUID(); operation = id
-        profileSessionID = nil; state = .signedOut; busy = true; message = nil; retryAfter = nil
+        profileSessionID = nil; offlineSession = false
+        state = .signedOut; busy = true; message = nil; retryAfter = nil
         let report = await session.logout()
         guard operation == id else { return }
         busy = false
@@ -110,7 +140,36 @@ final class SessionViewModel {
         }
     }
 
+    private func restoreOfflineIfAllowed(_ error: any Error) async -> Bool {
+        // Connectivity loss is not revoked authentication. Never use this fallback
+        // for 401/403, storage corruption, an absent Keychain token or account switch.
+        switch error as? HTTPError {
+        case .network, .timeout: break
+        default: return false
+        }
+        guard (try? await session.hasSavedSession()) == true else { return false }
+        let currentID = await session.currentID()
+        let profile: ApiMe
+        if profileSessionID == currentID, case .authenticated(let me) = state {
+            profile = me
+        } else if let cached = try? offlineProfile?.load(at: clock.now()) {
+            profile = cached
+        } else { return false }
+
+        profileSessionID = currentID
+        offlineSession = true
+        state = .authenticated(profile)
+        // Hide network-backed entry points until /users/me succeeds online.
+        navigation.paths = [:]
+        navigation.selectedTab = .vocabulary
+        message = "Mất kết nối. Bạn vẫn có thể xem từ vựng và luyện thẻ đã lưu trên iPhone (chỉ đọc)."
+        return true
+    }
+
     private func showRestorationError(_ error: any Error, signingIn: Bool = false) async {
+        offlineSession = false
+        if case .unauthorized = error as? HTTPError { try? offlineProfile?.clear() }
+        if case .forbidden = error as? HTTPError { try? offlineProfile?.clear() }
         // Failure to read Keychain must not be interpreted as an absent session.
         do { state = try await session.hasSavedSession() ? .unavailable : .signedOut }
         catch { state = .unavailable }
