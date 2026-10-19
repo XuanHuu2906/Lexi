@@ -108,6 +108,12 @@ struct OfflineNotebookTests {
         await model.refresh()
         #expect(!model.isOffline && model.phase == .failed && model.items.isEmpty)
         #expect(model.feedback != nil)
+        await api.fail(.network(-1009))
+        await model.refresh()
+        #expect(model.isOffline && !model.items.isEmpty)
+        await api.fail(.forbidden(nil))
+        await model.refresh()
+        #expect(!model.isOffline && model.items.isEmpty && model.phase == .failed)
     }
 
     @Test func flashcardsFallbackOnlyForConnectivityAndOnlyAfterFullDownload() async throws {
