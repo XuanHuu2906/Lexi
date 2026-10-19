@@ -36,7 +36,7 @@ actor OfflineNotebookCache {
     }
 
     func save(_ words: [Word], now: Date = .now) throws {
-        guard !closed else { return }
+        guard !closed else { throw CacheFailure.closed }
         // Never cache an incomplete response as a complete notebook.
         guard words.count <= Self.maximumWords,
               Set(words.map(\.id)).count == words.count,
@@ -74,7 +74,7 @@ actor OfflineNotebookCache {
         if clear { try? FileManager.default.removeItem(at: file) }
     }
 
-    enum CacheFailure: Error { case tooLarge }
+    enum CacheFailure: Error { case tooLarge, closed }
 }
 
 // Offline lists are read-only and are NEVER used to calculate authoritative due totals.
