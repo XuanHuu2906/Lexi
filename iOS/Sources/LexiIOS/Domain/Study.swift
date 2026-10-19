@@ -30,6 +30,24 @@ struct FlashcardSet: Decodable, Sendable {
     let scope: FlashcardScope
     let count: Int
     let cards: [Card]
+    // Client-only indicator: the backend JSON has no offline property.
+    let offline: Bool
+
+    init(mode: FlashcardMode, scope: FlashcardScope, count: Int, cards: [Card],
+         offline: Bool = false) {
+        self.mode = mode; self.scope = scope; self.count = count
+        self.cards = cards; self.offline = offline
+    }
+
+    private enum CodingKeys: String, CodingKey { case mode, scope, count, cards }
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        mode = try container.decode(FlashcardMode.self, forKey: .mode)
+        scope = try container.decode(FlashcardScope.self, forKey: .scope)
+        count = try container.decode(Int.self, forKey: .count)
+        cards = try container.decode([Card].self, forKey: .cards)
+        offline = false
+    }
 }
 
 struct QuizQuestion: Decodable, Sendable {
