@@ -54,7 +54,7 @@ struct SettingsView: View {
                         } else {
                             LexiButton(title: "Bật thông báo trên iPhone", variant: .secondary,
                                        isDisabled: model.dirty || model.saving || model.busy) {
-                                guard let saved = model.baseline else { return }
+                                guard session.navigation.ownerID == userID, let saved = model.baseline else { return }
                                 Task { await reminders.requestOnDevice(userID: userID, draft: saved) }
                             }
                         }
@@ -89,6 +89,7 @@ struct SettingsView: View {
                                isDisabled: !model.dirty || model.busy || model.draft.validation != nil || model.feedback?.canRetry(at: context.date) == false) {
                         Task {
                             if await model.save() {
+                                guard session.navigation.ownerID == userID else { return }
                                 changed()
                                 await reminders.reconcile(userID: userID, draft: model.baseline)
                             }
@@ -117,7 +118,7 @@ struct SettingsView: View {
         .lexiFormStyle()
         .task(id: attempt) {
             await model.load()
-            if model.loaded && !model.dirty {
+            if session.navigation.ownerID == userID && model.loaded && !model.dirty {
                 await reminders.reconcile(userID: userID, draft: model.baseline)
             }
         }
@@ -125,7 +126,9 @@ struct SettingsView: View {
             if model.dirty { confirmingReload = true }
             else {
                 await model.load()
-                if model.loaded { await reminders.reconcile(userID: userID, draft: model.baseline) }
+                if session.navigation.ownerID == userID && model.loaded {
+                    await reminders.reconcile(userID: userID, draft: model.baseline)
+                }
             }
         }
         .onChange(of: scenePhase) { _, phase in if phase == .active { attempt += 1 } }
