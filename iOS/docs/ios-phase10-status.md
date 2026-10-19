@@ -78,3 +78,10 @@ xtool dev
 - Màn offline chỉ mở Từ vựng/Flashcards cache, không phát lệnh AI/SRS hoặc chỉnh sửa server. Kết nối lại cần `/users/me` thành công; logout xóa bản profile Keychain và offline notebook. Có test phiên foreground, cold-start, revoked/expired credential, logout và cache-only zero HTTP.
 - **Phải nghiệm thu:** Cài build mới, mở Lexi **khi online ít nhất một lần** sau khi nâng cấp để lưu hồ sơ đã xác thực; sau đó bật Airplane mode + tắt Wi-Fi/cellular, thử rời app/quay lại và force-quit mở mới; vào Offline Flashcards, rồi bật mạng và xác nhận `Kết nối lại` khôi phục đủ tab. Xem [chi tiết khắc phục](phase10-offline-session-recovery.md).
 - Test/build và iPhone QA của bản sửa này **chưa chạy trong phiên connector**; không cập nhật trạng thái PASS cho Phase 10 từ riêng code.
+
+## Bảo mật logout và đổi tài khoản (PR riêng, 19/10/2026)
+
+- **Code và tests đã thêm, chưa chạy trên thiết bị:** `SessionViewModel` đóng writer cache đang hoạt động và hủy luồng ghi checkpoint/AI/audio **trước** khi xóa cache; sau đó purge toàn bộ `Application Support/LexiOfflineV1` (kể cả orphan của user cũ), xóa SRS/quiz checkpoint thuộc người dùng và hồ sơ offline trong Keychain. UI dữ liệu riêng tư được ẩn ngay khi logout/401.
+- **Không nuốt lỗi dọn dữ liệu:** xóa cache hoặc profile Keychain thất bại sẽ hiện cảnh báo dọn chưa xong và cho retry; đăng nhập user mới bị chặn tới khi dọn thành công. Ngăn sign-in và token invalidation chạy song song trong lúc dọn.
+- **Regression tests:** `AccountCacheIsolationTests.swift` — user A → logout → user B, ghi cache muộn, orphan snapshots, SRS checkpoint, Keychain deletion failure, terminal 401 từ SessionActor không cần callback `SwiftUI.onDisappear`. Xem [kịch bản nghiệm thu](phase10-account-cache-security-acceptance.md).
+- **Exit gate này vẫn mở** tới khi `bash scripts/verify-phase10.sh` PASS và thực hiện kiểm thử A/B trên iPhone. Xác nhận trước của người dùng về offline read/reconnect không thay thế bằng chứng account isolation.
