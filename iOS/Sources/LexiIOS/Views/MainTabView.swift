@@ -63,6 +63,14 @@ struct MainTabView: View {
             Button("Hủy", role: .cancel) {}
         }
         .task {
+            // Logout and token invalidation must close this exact cache writer
+            // before purging its file; the shell may have a pending async fetch.
+            model.registerNotebook(offlineCache, userID: me.id)
+            model.registerFeatureCleanup(userID: me.id) {
+                study.deactivate(clear: true)
+                ai.deactivate(clear: true)
+                audio.deactivate()
+            }
             savingLookup = model.pendingLookup != nil && !model.offlineSession
             await reminders.reconcile(userID: me.id, draft: me.setting.map(SettingsDraft.init))
         }

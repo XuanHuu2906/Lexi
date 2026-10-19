@@ -21,8 +21,7 @@ actor OfflineNotebookCache {
     private var closed = false
 
     init(namespace: String, directory: URL? = nil) {
-        let root = directory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("LexiOfflineV1", isDirectory: true)
+        let root = directory ?? Self.defaultDirectory
         #if canImport(CryptoKit)
         let digest = SHA256.hash(data: Data(namespace.utf8))
         let identifier = digest.map { String(format: "%02x", $0) }.joined()
@@ -69,9 +68,33 @@ actor OfflineNotebookCache {
         return snapshot
     }
 
-    func close(clear: Bool) {
+    /// Explicit logout uses this throwing path instead of silently ignoring
+    /// file-system failures. A closed actor cannot rewrite a purged snapshot.
+    func purge() throws {
         closed = true
-        if clear { try? FileManager.default.removeItem(at: file) }
+        if FileManager.default.fileExists(atPath: file.path) {
+            try FileManager.default.removeItem(at: file)
+        }
+    }
+
+    func close(clear: Bool) {
+        if clear { try? purge() }
+        else { closed = true }
+    }
+
+    /// A single-device logout clears *all* past account snapshots, including
+    /// orphaned snapshots from earlier app versions or interrupted sign-outs.
+    /// Call after closing the currently active writer actor.
+    static func purgeAll(directory: URL? = nil) throws {
+        let root = directory ?? defaultDirectory
+        if FileManager.default.fileExists(atPath: root.path) {
+            try FileManager.default.removeItem(at: root)
+        }
+    }
+
+    static var defaultDirectory: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("LexiOfflineV1", isDirectory: true)
     }
 
     enum CacheFailure: Error { case tooLarge, closed }
