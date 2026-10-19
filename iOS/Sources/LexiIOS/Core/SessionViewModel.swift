@@ -22,16 +22,19 @@ final class SessionViewModel {
     private let clock: any APIClock
     private let offlineProfile: OfflineProfileStore?
     private let offlineCacheDirectory: URL?
+    private let checkpointDefaults: UserDefaults
     private var activeNotebook: (owner: String, cache: OfflineNotebookCache)?
     private var operation = UUID()
     private var profileSessionID: UUID?
     private var lastCheck: Date?
 
     init(session: SessionActor, api: AuthAPI, clock: any APIClock = SystemAPIClock(),
-         offlineProfile: OfflineProfileStore? = nil, offlineCacheDirectory: URL? = nil) {
+         offlineProfile: OfflineProfileStore? = nil, offlineCacheDirectory: URL? = nil,
+         checkpointDefaults: UserDefaults = .standard) {
         self.session = session; self.api = api; self.clock = clock
         self.offlineProfile = offlineProfile
         self.offlineCacheDirectory = offlineCacheDirectory
+        self.checkpointDefaults = checkpointDefaults
     }
 
     /// Register the *same* writer actor as the authenticated shell. It must
@@ -55,7 +58,7 @@ final class SessionViewModel {
         catch { succeeded = false }
         if let ownerID {
             let namespace = api.client.environment.apiBaseURL.absoluteString + "|" + ownerID
-            StudyCheckpointStore(defaults: .standard, namespace: namespace).close(clear: true)
+            StudyCheckpointStore(defaults: checkpointDefaults, namespace: namespace).close(clear: true)
         }
         return succeeded
     }
