@@ -88,6 +88,23 @@ final class WordListViewModel {
         }
     }
 
+    /// Offline-only startup. Do not make authenticated API calls until session revalidation.
+    func loadOffline() async {
+        let id = UUID(); operation = id
+        let requested = query
+        let snapshot = await cache?.load()
+        guard operation == id, query == requested else { return }
+        loadingMore = false; feedback = nil
+        offlineWords = snapshot.map { OfflineNotebookQuery.filter($0.words, query: requested) } ?? []
+        items = Array(offlineWords.prefix(requested.limit))
+        total = offlineWords.count; page = 1
+        isOffline = true; offlineSavedAt = snapshot?.savedAt
+        phase = .stale
+        offlineMessage = snapshot == nil
+            ? "Không có sổ từ đã lưu hợp lệ trên iPhone này. Hãy kết nối mạng và tải sổ từ trước khi dùng offline."
+            : nil
+    }
+
     /// Explicit download, never a background fetch; store only a complete notebook.
     func saveForOffline() async {
         guard !savingOffline, let cache, let notebook else { return }
