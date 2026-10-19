@@ -14,6 +14,7 @@ struct MainTabView: View {
     private let reminders = LocalReminderService.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var savingLookup = false
+    @State private var confirmingOfflineLogout = false
 
     init(model: SessionViewModel, me: ApiMe, navigation: AppNavigation, api: LexiAPI) {
         self.model = model; self.me = me; self.navigation = navigation; self.api = api
@@ -56,8 +57,13 @@ struct MainTabView: View {
             }
         }
         .privacySensitive()
+        .confirmationDialog("Đăng xuất và xóa dữ liệu offline trên thiết bị?", isPresented: $confirmingOfflineLogout,
+                            titleVisibility: .visible) {
+            Button("Đăng xuất", role: .destructive) { Task { await model.logout() } }
+            Button("Hủy", role: .cancel) {}
+        }
         .task {
-            savingLookup = model.pendingLookup != nil
+            savingLookup = model.pendingLookup != nil && !model.offlineSession
             await reminders.reconcile(userID: me.id, draft: me.setting.map(SettingsDraft.init))
         }
         .onDisappear {
@@ -83,8 +89,11 @@ struct MainTabView: View {
                 }
             }
         }
+        .onChange(of: model.offlineSession) { _, offline in
+            if offline { savingLookup = false }
+        }
         .sheet(isPresented: $savingLookup, onDismiss: { model.pendingLookup = nil }) {
-            if let input = model.pendingLookup {
+            if !model.offlineSession, let input = model.pendingLookup {
                 AddWordSheet(api: api.words, input: input, changed: features.invalidate)
             }
         }
@@ -116,7 +125,7 @@ struct MainTabView: View {
                         }
                         LexiButton(title: "Đăng xuất khỏi thiết bị", variant: .destructive,
                                    isLoading: model.busy) {
-                            Task { await model.logout() }
+                            confirmingOfflineLogout = true
                         }
                     }
                 }
@@ -152,6 +161,13 @@ struct MainTabView: View {
     }
 
     @ViewBuilder private func destination(_ route: AppRoute) -> some View {
+        if model.offlineSession {
+            LexiPage {
+                EmptyState(title: "Tính năng cần kết nối mạng",
+                           message: "Phiên hiện ở chế độ offline chỉ đọc. Chọn Từ vựng hoặc Ôn tập để sử dụng nội dung đã lưu.",
+                           symbol: "wifi.slash")
+            }
+        } else {
         switch route {
         case .word(let id):
             WordDetailView(id: id, api: api.words, locale: audioLocale, changed: features.invalidate)
@@ -188,6 +204,7 @@ struct MainTabView: View {
                         .foregroundStyle(LexiColors.textSecondary)
                 }
             }.navigationTitle("Về Lexi")
+        }
         }
     }
 }
