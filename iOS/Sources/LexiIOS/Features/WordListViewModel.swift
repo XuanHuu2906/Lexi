@@ -22,15 +22,26 @@ final class WordListViewModel {
     private(set) var phase: LoadPhase = .idle
     private(set) var loadingMore = false
     private(set) var feedback: FeatureFeedback?
+    private(set) var isOffline = false
+    private(set) var offlineSavedAt: Date?
+    private(set) var savingOffline = false
+    private(set) var offlineMessage: String?
+    private var offlineWords: [Word] = []
     private var operation = UUID()
     private let api: any WordServing
+    private let cache: OfflineNotebookCache?
+    private let notebook: NotebookFlashcards?
     var hasMore: Bool { page > 0 && page * query.limit < total }
 
-    init(api: any WordServing) { self.api = api }
+    init(api: any WordServing, cache: OfflineNotebookCache? = nil,
+         notebook: NotebookFlashcards? = nil) {
+        self.api = api; self.cache = cache; self.notebook = notebook
+    }
 
     func invalidate() {
         operation = UUID()
         items = []; total = 0; page = 0; loadingMore = false; phase = .idle
+        isOffline = false; offlineSavedAt = nil; offlineWords = []
         // Preserve a server cooldown even if the filter changes.
         if feedback?.retryAt == nil { feedback = nil }
     }
@@ -49,15 +60,51 @@ final class WordListViewModel {
             guard operation == id, query == requested else { return }
             guard result.page == 1, result.limit == requested.limit else { throw HTTPError.invalidResponse }
             items = deduplicated(result.items); total = result.total; page = result.page
+            isOffline = false; offlineWords = []; offlineSavedAt = nil
             phase = items.isEmpty ? .empty : .loaded
         } catch {
             guard operation == id, !isCancellation(error) else { return }
-            feedback = FeatureFeedback(error); phase = items.isEmpty ? .failed : .stale
+            if NotebookFlashcards.isConnectivityFailure(error),
+               let snapshot = await cache?.load(), operation == id, query == requested {
+                offlineWords = OfflineNotebookQuery.filter(snapshot.words, query: requested)
+                items = Array(offlineWords.prefix(requested.limit))
+                total = offlineWords.count
+                page = 1
+                isOffline = true; offlineSavedAt = snapshot.savedAt
+                feedback = nil
+                phase = .stale
+            } else {
+                feedback = FeatureFeedback(error); phase = items.isEmpty ? .failed : .stale
+            }
+        }
+    }
+
+    /// Explicit download, never a background fetch; store only a complete notebook.
+    func saveForOffline() async {
+        guard !savingOffline, let cache, let notebook else { return }
+        savingOffline = true; offlineMessage = nil
+        defer { savingOffline = false }
+        do {
+            let words = try await notebook.fetchNotebook()
+            try Task.checkCancellation()
+            try await cache.save(words)
+            offlineMessage = "Đã lưu \(words.count) từ để xem offline trên iPhone này."
+        } catch is CancellationError { return }
+        catch OfflineNotebookCache.CacheFailure.tooLarge {
+            offlineMessage = "Sổ từ vượt giới hạn cache (1.000 từ hoặc 2 MiB). Không lưu bản thiếu."
+        } catch {
+            offlineMessage = "Chưa thể tải đủ sổ từ để xem offline. Hãy kết nối mạng rồi thử lại."
         }
     }
 
     func nextPage() async {
-        guard hasMore, !loadingMore, phase == .loaded, feedback?.canRetry() != false else { return }
+        guard hasMore, !loadingMore, (phase == .loaded || isOffline),
+              feedback?.canRetry() != false else { return }
+        if isOffline {
+            page += 1
+            items = Array(offlineWords.prefix(page * query.limit))
+            return
+        }
         let id = operation; var requested = query; requested.page = page + 1
         loadingMore = true; feedback = nil
         defer { if operation == id { loadingMore = false } }
