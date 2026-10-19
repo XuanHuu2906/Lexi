@@ -28,3 +28,9 @@ rtk git diff --check -- .
 ```
 
 Logs gitignored: `.local/phase9-swift-tests.log`, `.local/phase9-ios-build.log`; install log riêng `.local/phase9-device-install.log` có thể chứa device/signing identifiers, không chép vào báo cáo public. Không gửi audio/prompt hoặc gọi provider trực tiếp từ runner.
+
+## Bổ sung bằng chứng ảnh iPhone — 19/10/2026
+
+Người dùng gửi ảnh màn **Học → Luyện phát âm**: phần **Bản ghi của bạn** hiện `4,8 giây · Sẵn sàng nghe lại`; sau gửi chấm app hiển thị `Chưa thể hoàn tất yêu cầu...`. Điều này xác nhận UI đã đến trạng thái có bản ghi và xảy ra lỗi request/kết quả. **Chưa có log HTTP/status hoặc bằng chứng Azure trả điểm.** Chưa xác minh playback thực sự nghe được qua loa, Bluetooth, WAV được server chấp nhận hoặc nguồn lỗi thuộc Azure.
+
+Đã mở [runbook xác định HTTP/Azure/Render](../phase9-pronunciation-failure-diagnosis.md) và thay đổi message để lần cài build mới phân biệt trạng thái lỗi an toàn. **Không đổi IOS-0931 hoặc exit gate thành PASS.** Không lưu ảnh, bản ghi hoặc khóa bí mật trong GitHub.
