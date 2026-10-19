@@ -15,13 +15,17 @@ private func offlineFixture(_ count: Int) -> [Word] {
 private actor OfflineListingSpy: WordServing, FlashcardWordListing {
     let words: [Word]
     var error: HTTPError?
+    var omitLastPage = false
     private(set) var reads = 0
     init(words: [Word], error: HTTPError? = nil) { self.words = words; self.error = error }
     func fail(_ error: HTTPError?) { self.error = error }
+    func simulateMissingLastPage() { omitLastPage = true }
     func list(_ query: WordsQuery) async throws -> WordPage {
         reads += 1
         if let error { throw error }
-        return WordPage(items: Array(words.dropFirst((query.page - 1) * query.limit).prefix(query.limit)),
+        let items = omitLastPage && query.page > 1 ? []
+            : Array(words.dropFirst((query.page - 1) * query.limit).prefix(query.limit))
+        return WordPage(items: items,
                         total: words.count, page: query.page, limit: query.limit)
     }
     func get(id: String) async throws -> Word { throw HTTPError.invalidRequest }
@@ -145,6 +149,19 @@ struct OfflineNotebookTests {
         #expect(model.offlineMessage?.contains("giới hạn") == true)
         #expect(await cache.load() == nil)
         #expect(await api.reads == 1)
+    }
+
+    @Test func missingFinalServerPageCannotBeMisreportedAsEntireOfflineNotebook() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = OfflineNotebookCache(namespace: "api|truncated", directory: root)
+        let api = OfflineListingSpy(words: offlineFixture(125))
+        await api.simulateMissingLastPage()
+        let notebook = NotebookFlashcards(words: api, cache: cache)
+        await #expect(throws: HTTPError.invalidResponse) {
+            _ = try await notebook.fetchNotebook()
+        }
+        #expect(await cache.load() == nil)
     }
 
     @Test func interruptedFullDownloadDoesNotOverwriteEarlierGoodCache() async throws {
