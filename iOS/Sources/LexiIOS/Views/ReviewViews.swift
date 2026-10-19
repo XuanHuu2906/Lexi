@@ -115,6 +115,9 @@ struct FlashcardsView: View {
             if let feedback = model.feedback { FeatureErrorView(feedback: feedback) { attempt += 1 } }
             if model.loading { LoadingState(title: "Đang chuẩn bị thẻ…") }
             else if let deck = model.deck {
+                if deck.offline {
+                    FeedbackNotice(message: "Thẻ lấy từ sổ từ đã lưu offline. Đây là luyện tập trên iPhone, không cập nhật lịch ôn SRS hay đồng bộ tiến độ lên máy chủ.", symbol: "wifi.slash")
+                }
                 BadgeChip(title: "Bộ đang học: \(deck.scope.title)", symbol: "rectangle.stack")
                 if scope != deck.scope {
                     FeedbackNotice(message: "Hôm nay chưa có từ mới. Lexi đã chuyển sang bộ ưu tiên đến hạn.")
