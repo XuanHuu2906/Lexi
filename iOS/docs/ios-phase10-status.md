@@ -1,8 +1,10 @@
 # Phase 10 — Nhắc học, APNs, Offline, Background
 
-**Bắt đầu:** 19/10/2026. **Nhánh triển khai:** `codex/phase10-local-reminders-20261019` (chưa nghiệm thu trên iPhone).
+**Rà soát lại 19/10/2026:** Người dùng xác nhận **“Đã thử cả 3, đều đạt”** cho: nhắc học → mở Ôn tập; offline → force-quit/relaunch → từ vựng/Flashcards → reconnect; logout A → login B không thấy dữ liệu A. Đây là kết quả bản người dùng đã cài, chưa đối chiếu SHA.
 
-Azure Speech/Pronunciation của Phase 9 **được tạm hoãn theo yêu cầu** do phụ thuộc dịch vụ nhà cung cấp; Phase 9 exit gate vẫn mở. Chuyển sang Phase 10 không tương đương đã hoàn tất Phase 9. Không ghi thông tin tài khoản cloud/billing vào tài liệu public.
+**14/27 task đạt phạm vi code/test/quyết định hoặc xác nhận thiết bị; 5 task một phần; 8 APNs hoãn theo ADR-010.** Bộ test/build đã chạy trong WSL; đã sửa script CRLF và hai vấn đề vòng đời cache/foreground reminder. Bản sửa UI mới cần cài và kiểm tra lại; chưa tuyên bố 27/27 hoàn tất. Xem [bằng chứng audit](evidence/phase10-verification-2026-10-19.md).
+
+Các mục bên dưới lưu lịch sử triển khai trước audit; ghi chú “chưa chạy test/build” được thay thế bằng báo cáo audit ở trên. Kết quả thiết bị mới chỉ áp dụng ba luồng đã nêu, không xác nhận denied/provisional/DST, thiếu dung lượng hoặc profiling. Phase 9 có [bằng chứng riêng](ios-phase9-status.md), không còn suy ra Azure bị chặn từ ghi chú lịch sử.
 
 ## Tiến độ từng nhóm
 
@@ -26,7 +28,7 @@ Azure Speech/Pronunciation của Phase 9 **được tạm hoãn theo yêu cầu*
 
 - Tác vụ lên GitHub **chưa chạy toàn bộ SwiftPM tests / `xtool dev build`** trên môi trường WSL đã cấu hình của người dùng. Người dùng đã xác nhận local notifications hoạt động trên iPhone ở lượt trước; điều này **không** xác nhận mọi tình huống quyền/DST hay bất kỳ test offline cache nào.
 - Đã kiểm tra độc lập 3 mốc ngày timezone/DST với Swift 6.2.1 trên Linux, nhưng đây không thay thế compile iOS hoặc QA thông báo thực.
-- **Exit gate Phase 10 chưa đóng.** Không có bằng chứng notification thực tế được cấp quyền, lập lịch và xuất hiện trên iPhone.
+- **Exit gate toàn checklist vẫn mở.** Audit sau đó đã có xác nhận nhắc học xuất hiện và tap mở Ôn tập; các trường hợp permission/timezone và bản sửa vòng đời mới vẫn cần thử riêng.
 
 ### Chạy trên WSL
 

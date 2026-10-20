@@ -1,6 +1,6 @@
 # Phase 9 — Audio native, TTS, Pronunciation, Dictation
 
-Triển khai ngày **19/10/2026**, working tree. **21/35 task có bằng chứng code/test hoặc quyết định kỹ thuật; exit gate chưa đóng.** Chưa suy ra microphone/Azure hoạt động chỉ vì build thành công. Không sửa backend, không đưa provider key vào iOS.
+Triển khai ngày **19/10/2026**. **23/35 task có bằng chứng code/test, quyết định kỹ thuật hoặc xác nhận thiết bị; exit gate chưa đóng.** Người dùng đã xác nhận toàn bộ lượt thử thu âm → nghe lại → gửi chấm phát âm và Dictation → nghe/nghe chậm → kiểm tra đáp án bằng câu “oke hết rồi”. Các tình huống gián đoạn, privacy và profiling chưa được suy ra từ lượt thử này. Không đưa provider key vào iOS.
 
 ## Trạng thái từng task
 
@@ -14,10 +14,10 @@ Triển khai ngày **19/10/2026**, working tree. **21/35 task có bằng chứng
 | IOS-0906 | Chờ thiết bị | Bluetooth, silent switch, cuộc gọi/background thực. |
 | IOS-0907 | Xong code/test | Chỉ xin permission sau Record, denied + Settings, ngăn start muộn sau rời màn. |
 | IOS-0908 | Xong, đã kiểm artifact | Info.plist có NSMicrophoneUsageDescription qua infoPath. |
-| IOS-0909 | Một phần | AVFoundation target iOS build PASS; đang chờ thử capture thật. |
+| IOS-0909 | Đã xác nhận thiết bị | Người dùng xác nhận ghi âm, dừng và nghe lại trên iPhone sau cài bằng xtool. |
 | IOS-0910 | Đã chốt code | playAndRecord/default, speaker/HFP, interruption/disconnect/reset stop; không chạy đồng thời TTS/mic, không hứa echo cancellation. |
 | IOS-0911 | Xong code/test | Recorder tự dừng 60s; giới hạn thời lượng/file 5 MiB trước upload. |
-| IOS-0912 | Chờ thiết bị | AVAudioRecorder yêu cầu PCM16/mono/16k và validator kiểm bytes sau stop; cần bản ghi thật. Không dùng AVAudioConverter riêng. |
+| IOS-0912 | Đã xác nhận thiết bị | Bản ghi iPhone qua validator RIFF/PCM16/mono/16k rồi gửi chấm thành công theo người dùng. AVAudioRecorder xuất trực tiếp WAV; không dùng AVAudioConverter riêng, không lưu audio thật làm fixture. |
 | IOS-0913 | Xong code/test | RIFF chunks/padding/fmt/data length, frames, duration và encoding. |
 | IOS-0914 | Chưa kích hoạt | Chỉ cần endpoint transcoding nếu native WAV không hoạt động; chưa đổi backend. |
 | IOS-0915 | Xong code/test | Empty/too-short/too-long/zero PCM/permission/error, cancellation và temp cleanup. |
@@ -36,7 +36,7 @@ Triển khai ngày **19/10/2026**, working tree. **21/35 task có bằng chứng
 | IOS-0928 | Chưa áp dụng | Không dùng Speech framework; Dictation nhập bằng bàn phím. |
 | IOS-0929 | Một phần | Code suspend/deactivate cleanup, test late response; chưa profile resource leaks trên iPhone. |
 | IOS-0930 | Một phần | Có interruption/disconnect/cancellation handlers; chưa test cuộc gọi/tai nghe thật. |
-| IOS-0931 | Chờ live | Cần WAV fixture có lời nói và recording iPhone gửi staging/nhận Azure response. |
+| IOS-0931 | Một phần, iPhone đạt | Người dùng xác nhận luồng ghi âm → chấm phát âm; chưa có lượt gửi WAV fixture lời nói độc lập hoặc HTTP capture. |
 | IOS-0932 | Xong code/test | Validate ≤5 MiB, format/MIME và bytes multipart thật. |
 | IOS-0933 | Chưa đo | Scope giới hạn 60s; chưa profile memory/battery ở thời lượng tối đa, không cho record 3 phút. |
 | IOS-0934 | Chưa nghiệm thu | Contract theo backend/web source; chưa so UX web/iPhone cùng reference. |
@@ -48,7 +48,7 @@ Triển khai ngày **19/10/2026**, working tree. **21/35 task có bằng chứng
 - `xtool dev build` **PASS**, log lần cuối 0 warnings/0 errors.
 - Artifact có microphone purpose string; không có background audio hoặc Speech Recognition permission.
 - `git diff --check -- .` PASS.
-- Cài iPhone và kết quả người dùng sẽ được ghi trong [bằng chứng Phase 9](evidence/phase9-verification-2026-10-19.md).
+- Log cài iPhone có Signing/Installing/Verifying/100%, không có `error:`. Người dùng xác nhận lượt thử chức năng chính; xem [bằng chứng Phase 9](evidence/phase9-verification-2026-10-19.md). Bản cài trước không mặc nhiên kiểm chứng các commit hardening mới hơn.
 
 ## Lượt thử thiết bị
 
@@ -63,4 +63,4 @@ Triển khai ngày **19/10/2026**, working tree. **21/35 task có bằng chứng
 - Backend có `src/skills/wav-parser.ts`: ràng buộc RIFF length/chunk bounds, PCM16 mono 16 kHz, <=5 MiB trước khi gọi Azure SDK; malformed upload trả 422 thay vì để parser đọc vượt buffer.
 - Thêm `src/skills/wav-parser.spec.ts` cho valid WAV và nhiều trường hợp WAV lỗi; hạn chế log raw provider error details trong `azure-speech.service.ts`.
 - Checklist thử iPhone, Azure, Bluetooth, Dictation và privacy: [phase9-device-acceptance.md](phase9-device-acceptance.md).
-- **Chưa chạy được Swift/xtool 6.4 hoặc Jest/backend build trên máy phát triển của người dùng trong lần thay đổi này.** Chưa có bằng chứng live mới; 21/35 là số trong báo cáo trước và exit gate Phase 9 vẫn mở. Chỉ cập nhật tỷ lệ sau khi có kết quả thực.
+- Ghi nhận lịch sử của branch hardening: tại thời điểm đó chưa chạy được Swift/xtool 6.4 hoặc Jest/backend build trên máy người dùng. Lượt xác minh bổ sung và xác nhận thiết bị hiện tại được ghi trong [bằng chứng](evidence/phase9-verification-2026-10-19.md); không dùng test iOS thay cho test/deploy backend.
