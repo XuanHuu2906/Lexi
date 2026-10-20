@@ -923,6 +923,8 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 
 **Mục tiêu:** Sử dụng framework âm thanh của Apple (`AVFoundation`, `AVSpeechSynthesizer`) để iOS học phát âm đúng luồng backend Azure. Đây là phase **có rủi ro kỹ thuật cao** trên xtool/WSL.
 
+**Cập nhật 19/10/2026:** **23/35 task có bằng chứng code/test, quyết định kỹ thuật hoặc xác nhận thiết bị.** Người dùng xác nhận thu âm → nghe lại → chấm phát âm và Dictation → nghe/nghe chậm → kiểm tra trên iPhone. Checkmark chỉ xác nhận phạm vi từng task; exit gate vẫn mở cho tình huống gián đoạn/permission, fixture độc lập, privacy và profiling. Xem [trạng thái chi tiết](ios-phase9-status.md) và [bằng chứng](evidence/phase9-verification-2026-10-19.md).
+
 ## 9.A. Baseline đã đọc
 
 - `frontend/src/lib/speech.ts` sử dụng browser `speechSynthesis`, `SpeechRecognition`/`webkitSpeechRecognition`, `getUserMedia` và `AudioContext` để tạo **WAV mono, PCM 16-bit, 16 kHz**.
@@ -934,41 +936,41 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 
 ## 9.B. TTS / Playback
 
-- [ ] **IOS-0901** Tạo `SpeechSynthesizing` protocol và adapter `AVSpeechSynthesizer`.
-- [ ] **IOS-0902** Ánh xạ `EN_US`→`en-US`, `EN_GB`→`en-GB`, voice availability và speech rate.
-- [ ] **IOS-0903** Play/stop/switch word giữa danh sách; không để 2 utterances cùng nói chồng.
-- [ ] **IOS-0904** Xử lý mute switch/audio session behavior theo sản phẩm; ghi quyết định vào docs.
-- [ ] **IOS-0905** Respect accessibility và user settings (speech speed, language fallback).
+- [x] **IOS-0901** Tạo `SpeechSynthesizing` protocol và adapter `AVSpeechSynthesizer`.
+- [x] **IOS-0902** Ánh xạ `EN_US`→`en-US`, `EN_GB`→`en-GB`, voice availability và speech rate.
+- [x] **IOS-0903** Play/stop/switch word giữa danh sách; không để 2 utterances cùng nói chồng.
+- [x] **IOS-0904** Xử lý mute switch/audio session behavior theo sản phẩm; ghi quyết định vào docs.
+- [x] **IOS-0905** Respect accessibility và user settings (speech speed, language fallback).
 - [ ] **IOS-0906** Test âm thanh khi tai nghe Bluetooth, silent mode, incoming call, app background.
 
 ## 9.C. Microphone/recording spike trước UI lớn
 
-- [ ] **IOS-0907** Tạo `MicrophonePermissionService`; chỉ yêu cầu quyền khi người dùng chủ động bấm Record.
-- [ ] **IOS-0908** Bổ sung `NSMicrophoneUsageDescription` vào Info.plist bằng `infoPath`; câu mô tả chính xác/đọc hiểu được.
-- [ ] **IOS-0909** Xác nhận `AVFoundation` imports, audio capture và recording API chạy được với xtool **trên iPhone thật**.
-- [ ] **IOS-0910** Quyết định `AVAudioSession` category/mode/route, echo cancellation, interruptions, Bluetooth behavior.
-- [ ] **IOS-0911** Ghi tối đa thời lượng/dung lượng cho request dưới 5 MiB; cảnh báo trước khi nén/chuyển mã.
-- [ ] **IOS-0912** Proof-of-concept: xuất một tệp WAV **PCM 16-bit mono 16 kHz** qua converter trên iPhone, không chỉ đọc sample metadata sai.
-- [ ] **IOS-0913** Dùng kiểm tra header/sample/frame count; file duration, sample rate và channels thực sự đúng.
+- [x] **IOS-0907** Tạo `MicrophonePermissionService`; chỉ yêu cầu quyền khi người dùng chủ động bấm Record.
+- [x] **IOS-0908** Bổ sung `NSMicrophoneUsageDescription` vào Info.plist bằng `infoPath`; câu mô tả chính xác/đọc hiểu được.
+- [x] **IOS-0909** Xác nhận `AVFoundation` imports, audio capture và recording API chạy được với xtool **trên iPhone thật**.
+- [x] **IOS-0910** Quyết định `AVAudioSession` category/mode/route, echo cancellation, interruptions, Bluetooth behavior.
+- [x] **IOS-0911** Ghi tối đa thời lượng/dung lượng cho request dưới 5 MiB; cảnh báo trước khi nén/chuyển mã.
+- [x] **IOS-0912** Proof-of-concept: xuất một tệp WAV **PCM 16-bit mono 16 kHz** trên iPhone và kiểm bytes/frame count; triển khai dùng AVAudioRecorder xuất trực tiếp WAV, không cần AVAudioConverter riêng. Người dùng xác nhận thu âm và gửi chấm thành công.
+- [x] **IOS-0913** Dùng kiểm tra header/sample/frame count; file duration, sample rate và channels thực sự đúng.
 - [ ] **IOS-0914** Nếu AVAudioConverter trong cấu hình SDK/toolchain không tạo WAV phù hợp, thiết kế endpoint riêng nhận M4A với server-side conversion và giới hạn codec/content-type/duration để tránh abuse.
-- [ ] **IOS-0915** Chặn file rỗng, quá dài, mic denied, interruptions, format unsupported; hủy và xóa temporary file.
-- [ ] **IOS-0916** Không upload audio nếu user chưa đồng ý/ấn submit; không lưu recording lâu dài ngoài mục đích đã mô tả.
+- [x] **IOS-0915** Chặn file rỗng, quá dài, mic denied, interruptions, format unsupported; hủy và xóa temporary file.
+- [x] **IOS-0916** Không upload audio nếu user chưa đồng ý/ấn submit; không lưu recording lâu dài ngoài mục đích đã mô tả.
 
 ## 9.D. Pronunciation
 
-- [ ] **IOS-0917** Tạo `PronunciationView`: reference text, Record/Stop, playback preview, Submit, score/feedback.
-- [ ] **IOS-0918** Implement `MultipartFormDataBuilder`: `referenceText`, `audio` file binary + correct MIME/filename/boundary.
-- [ ] **IOS-0919** `URLSession.upload` với temp file để tránh giữ memory lớn, streaming khi phù hợp.
-- [ ] **IOS-0920** Khi backend trả Azure result: show `score 0..100`, transcriptHeard, mispronounced, feedback.
-- [ ] **IOS-0921** Điều kiện score fallback theo contract: nếu gửi `recognizedText` không có audio thì backend có LLM fallback; đừng tự nhầm audio fail với text success.
+- [x] **IOS-0917** Tạo `PronunciationView`: reference text, Record/Stop, playback preview, Submit, score/feedback.
+- [x] **IOS-0918** Implement `MultipartFormDataBuilder`: `referenceText`, `audio` file binary + correct MIME/filename/boundary.
+- [x] **IOS-0919** `URLSession.upload` với temp file để tránh giữ memory lớn, streaming khi phù hợp.
+- [x] **IOS-0920** Khi backend trả Azure result: show `score 0..100`, transcriptHeard, mispronounced, feedback.
+- [x] **IOS-0921** Điều kiện score fallback theo contract: nếu gửi `recognizedText` không có audio thì backend có LLM fallback; đừng tự nhầm audio fail với text success.
 - [ ] **IOS-0922** Test file thật ngắn/dài, accented speech, silence, no input, permission denied, azure not configured.
 - [ ] **IOS-0923** Test trên iPhone thật ở nhiều micro environments: yên tĩnh, ồn, tai nghe, app resume.
 - [ ] **IOS-0924** Kiểm tra content privacy: xử lý audio consent, temporary file cleanup, backend retention policy.
 
 ## 9.E. Dictation + Speech-to-text
 
-- [ ] **IOS-0925** Tạo `DictationView` theo `dictation/generate` request/response thật, phát âm sentence và nhập transcript.
-- [ ] **IOS-0926** Submit answer → `dictation/explain`, hiển thị correction/explanation từ API.
+- [x] **IOS-0925** Tạo `DictationView` theo `dictation/generate` request/response thật, phát âm sentence và nhập transcript.
+- [x] **IOS-0926** Submit answer → `dictation/explain`, hiển thị correction/explanation từ API.
 - [ ] **IOS-0927** Tự động/tiện ích speech recognition của Apple (`Speech` framework) chỉ là **optional spike**; kiểm tra tính tương thích xtool, permission `NSSpeechRecognitionUsageDescription`, availability locale và privacy policy.
 - [ ] **IOS-0928** Nếu dùng Apple speech recognition, xử lý permission denial/fallback text entry; không phụ thuộc kết nối/recognizer 100%.
 - [ ] **IOS-0929** Test playback/recording chuyển tab không gây resource leaks; cleanup AVAudioEngine/recorder.
@@ -977,10 +979,10 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 ## 9.F. Verification
 
 - [ ] **IOS-0931** Test `POST /pronunciation/score` trên staging với file WAV fixture hợp lệ + iPhone recording.
-- [ ] **IOS-0932** Kiểm tra byte length ≤5 MiB và content-type đúng multipart.
-- [ ] **IOS-0933** Profile memory/battery khi record 1–3 phút; không giữ raw PCM unbounded.
+- [x] **IOS-0932** Kiểm tra byte length ≤5 MiB và content-type đúng multipart.
+- [ ] **IOS-0933** Profile memory/battery ở giới hạn ghi âm hiện tại **60 giây**; không giữ raw PCM unbounded. Nếu mở rộng lên 3 phút phải đo lại trước khi phát hành.
 - [ ] **IOS-0934** So sánh UX với Lexi Web cho cùng reference, không đòi điểm AI khớp tuyệt đối.
-- [ ] **IOS-0935** Viết `docs/ios-audio-format.md`: sample rate, converter, MIME, server dependencies và fallback.
+- [x] **IOS-0935** Viết `docs/ios-audio-format.md`: sample rate, converter, MIME, server dependencies và fallback.
 
 **Exit gate:** Ghi âm thật, chuyển mã hợp lệ và có response từ Azure qua backend trên iPhone; permission, cancel, temporary files và lỗi thiết bị đều được xử lý.
 
@@ -990,6 +992,8 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 
 **Mục tiêu:** Tăng tính hữu dụng hàng ngày mà không phá lịch học SRS hoặc làm tăng rủi ro bảo mật.
 
+**Audit 19/10/2026:** 168 tests / 18 suites và xtool iOS build PASS. Người dùng xác nhận nhắc học → Ôn tập, offline cold start/reconnect và logout A → login B không lẫn dữ liệu. **14/27 task đạt phạm vi code/test/quyết định hoặc luồng thiết bị; 5 task một phần; 8 APNs hoãn.** Hai sửa lỗi vòng đời cache/nhắc học trong working tree đã test/build, chưa cài lại iPhone. Xem [báo cáo và giới hạn](evidence/phase10-verification-2026-10-19.md); không đồng nhất checkbox code với nghiệm thu mọi tình huống thiết bị.
+
 ## 10.A. Push thực tế của Lexi
 
 - Web dùng `web-push` với VAPID và lưu `PushSubscription` có `endpoint`, `keys.p256dh`, `keys.auth`.
@@ -998,17 +1002,17 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 
 ## 10.B. Local notifications (ưu tiên)
 
-- [ ] **IOS-1001** Implement `NotificationPermissionService` bằng `UNUserNotificationCenter`.
-- [ ] **IOS-1002** Chỉ xin quyền sau khi user bật `notifyEnabled` hoặc hiểu rõ giá trị reminder; không xin trong màn splash.
+- [x] **IOS-1001** Implement `NotificationPermissionService` bằng `UNUserNotificationCenter`.
+- [x] **IOS-1002** Chỉ xin quyền sau khi user bật `notifyEnabled` hoặc hiểu rõ giá trị reminder; không xin trong màn splash.
 - [ ] **IOS-1003** Lập lịch nhắc theo `Settings.reminderTime` và `timeZone` của user; test DST/timezone travel.
-- [ ] **IOS-1004** Phân biệt app schedule nhắc hàng ngày với “đang due” thực từ server; không khẳng định cụ thể số từ chưa sync.
-- [ ] **IOS-1005** App foreground resume phải reschedule/removing stale reminder sau update settings, logout hoặc account switch.
-- [ ] **IOS-1006** Tap notification đưa tới Review nếu authenticated; nếu session expired → Login rồi điều hướng.
+- [x] **IOS-1004** Phân biệt app schedule nhắc hàng ngày với “đang due” thực từ server; không khẳng định cụ thể số từ chưa sync.
+- [x] **IOS-1005** App foreground resume phải reschedule/removing stale reminder sau update settings, logout hoặc account switch.
+- [x] **IOS-1006** Tap notification đưa tới Review nếu authenticated; nếu session expired → Login rồi điều hướng.
 - [ ] **IOS-1007** Test system settings permission denied, revoked, provisional, app restart, timezone change.
 
 ## 10.C. Remote APNs (để sau local)
 
-- [ ] **IOS-1008** Chốt có cần APNs server push cho due reminders/badges hay local đủ V1.
+- [x] **IOS-1008** Chốt có cần APNs server push cho due reminders/badges hay local đủ V1.
 - [ ] **IOS-1009** Proof APNs capability/entitlement với xtool và bundle ID đã đăng ký; nếu không hỗ trợ đầy đủ, macOS signing path là blocker cần xử lý.
 - [ ] **IOS-1010** Register APNs device token bằng Apple native API; handle token rotation, sandbox/production environment.
 - [ ] **IOS-1011** Backend schema riêng cho `IosDeviceToken` (userId, token hash/token encrypt, environment, lastSeen, revokedAt), **không** lưu thành web VAPID subscription.
@@ -1020,16 +1024,16 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 
 ## 10.D. Offline và data consistency
 
-- [ ] **IOS-1017** Viết ADR offline: **V1 read-only cached word list, flashcard read; không chấm SRS offline**.
+- [x] **IOS-1017** Viết ADR offline: **V1 read-only cached word list, flashcard read; không chấm SRS offline**.
 - [ ] **IOS-1018** Chọn persistence sau benchmark (`SwiftData` nếu xtool tương thích/compile trên thiết bị; fallback SQLite/file-backed Codable cache rõ ràng).
-- [ ] **IOS-1019** Cache per-user keyspace; encrypt/private storage khi cần; xóa hoàn toàn khi logout hoặc account deletion.
-- [ ] **IOS-1020** Metadata cache: updatedAt/version/etag nếu server hỗ trợ; TTL và stale indicator.
-- [ ] **IOS-1021** Không giữ AI full prompts/audio lâu dài bằng default offline cache.
+- [x] **IOS-1019** Cache per-user keyspace; encrypt/private storage khi cần; xóa hoàn toàn khi logout hoặc account deletion.
+- [x] **IOS-1020** Metadata cache: updatedAt/version/etag nếu server hỗ trợ; TTL và stale indicator.
+- [x] **IOS-1021** Không giữ AI full prompts/audio lâu dài bằng default offline cache.
 - [ ] **IOS-1022** Cache warm-up từ server khi có mạng, giới hạn storage, purge strategy, low disk handling.
-- [ ] **IOS-1023** App offline chỉ xem những mục đã tải; rõ ràng phân biệt “offline view” và “saved on server”.
-- [ ] **IOS-1024** Khi reconnect, re-fetch authoritative data, không reapply SRS/quiz mutations offline không có idempotency.
-- [ ] **IOS-1025** Nếu future muốn offline write, cần thiết kế mutation log durable, request IDs, server idempotency, conflicts, atomic replay, multi-device arbitration **trước khi code**.
-- [ ] **IOS-1026** Không giả định Background App Refresh chạy đúng phút; OS quyết định lịch và có thể trì hoãn/suspend.
+- [x] **IOS-1023** App offline chỉ xem những mục đã tải; rõ ràng phân biệt “offline view” và “saved on server”.
+- [x] **IOS-1024** Khi reconnect, re-fetch authoritative data, không reapply SRS/quiz mutations offline không có idempotency.
+- [x] **IOS-1025** Nếu future muốn offline write, cần thiết kế mutation log durable, request IDs, server idempotency, conflicts, atomic replay, multi-device arbitration **trước khi code**.
+- [x] **IOS-1026** Không giả định Background App Refresh chạy đúng phút; OS quyết định lịch và có thể trì hoãn/suspend.
 - [ ] **IOS-1027** Đo network/battery for polling; không polling due mỗi phút ở background.
 
 **Exit gate:** Local reminders chạy với permission; cache không lẫn user, không ghi đè server; nếu remote APNs được bật thì backend gửi đến iPhone thật có proof.

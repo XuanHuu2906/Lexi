@@ -644,7 +644,7 @@ struct LearningGoalCard: View {
 | **P1** | Flashcards/Quiz | Đã có code/test Phase 7; chưa QA thiết bị | Modes, audio, selection, result, progress/resume |
 | **P1** | Tutor/Grammar chat | Đã có code/test Phase 8; context trong RAM | QA chat, keyboard, takeaways và 429 |
 | **P2** | Conversation, Writing, Context | Đã có code/test Phase 8; gate live còn mở | QA screens, AI states, resume và web parity |
-| **P2** | Pronunciation, Dictation | Có UI web, chưa thấy native view tương ứng | Audio permission/record/playback UX |
+| **P2** | Pronunciation, Dictation | Có native view/code/test Phase 9; người dùng xác nhận luồng chính trên iPhone | QA interruptions, permission denied, Bluetooth và accessibility; xem [trạng thái Phase 9](ios-phase9-status.md) |
 | **P2** | Grammar Vault, Notification center | Grammar Vault đã có native CRUD Phase 8; Notification center chưa đầy đủ | QA grammar lists/detail; notification handling |
 | **Out of scope** | Admin dashboard/tables | Có web admin area | Không ép admin UI desktop lên learner iPhone nếu không có yêu cầu sản phẩm |
 

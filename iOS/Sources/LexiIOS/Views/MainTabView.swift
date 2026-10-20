@@ -10,7 +10,9 @@ struct MainTabView: View {
     @State private var study: StudyFeatures
     @State private var ai: AIFeatures
     @State private var audio: AudioFeatures
-    private let offlineCache: OfflineNotebookCache
+    // Keep the exact actor retained by the State-owned feature models when
+    // SwiftUI recreates this view after /users/me or offline state changes.
+    @State private var offlineCache: OfflineNotebookCache
     private let reminders = LocalReminderService.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var savingLookup = false
@@ -19,7 +21,7 @@ struct MainTabView: View {
     init(model: SessionViewModel, me: ApiMe, navigation: AppNavigation, api: LexiAPI) {
         self.model = model; self.me = me; self.navigation = navigation; self.api = api
         let cache = OfflineNotebookCache(namespace: api.client.environment.apiBaseURL.absoluteString + "|" + me.id)
-        offlineCache = cache
+        _offlineCache = State(initialValue: cache)
         let features = LearningFeatures(api: api, cache: cache)
         _features = State(initialValue: features)
         _study = State(initialValue: StudyFeatures(api: api, userID: me.id,
@@ -63,6 +65,7 @@ struct MainTabView: View {
             Button("Hủy", role: .cancel) {}
         }
         .task {
+            guard !Task.isCancelled, navigation.ownerID == me.id else { return }
             // Logout and token invalidation must close this exact cache writer
             // before purging its file; the shell may have a pending async fetch.
             model.registerNotebook(offlineCache, userID: me.id)
@@ -87,11 +90,16 @@ struct MainTabView: View {
         .onChange(of: scenePhase) { _, phase in if phase == .background { audio.suspend() } }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
+                let generation = navigation.generation
                 Task {
-                    guard !model.offlineSession else { return }
+                    guard navigation.ownerID == me.id, !model.offlineSession else { return }
                     // Re-fetch account preferences on foreground, not in background;
                     // never overwrite an unsaved Settings form just to reschedule.
                     if !features.settings.dirty { await features.settings.load() }
+                    // A foreground request may outlive logout or a new login,
+                    // including a new session for this same account.
+                    guard !Task.isCancelled, navigation.ownerID == me.id,
+                          navigation.generation == generation, !model.offlineSession else { return }
                     await reminders.reconcile(userID: me.id,
                         draft: features.settings.baseline ?? me.setting.map(SettingsDraft.init))
                 }

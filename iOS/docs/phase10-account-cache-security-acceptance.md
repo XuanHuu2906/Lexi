@@ -1,7 +1,7 @@
 # Phase 10 — Logout, cache deletion and multi-account isolation acceptance
 
 **Scope:** IOS-1019, E2E-012 and the security prerequisite for IOS-1104.  
-**Date:** 2026-10-19 · **Status:** implementation and regression tests proposed; physical iPhone evidence pending.
+**Date:** 2026-10-19 · **Audit update:** full 168-test suite and xtool build PASS; user confirmed A → logout → B isolation on the installed iPhone app. New SwiftUI cache lifetime and foreground reminder guards passed build/tests but still need installation/device QA. See [audit evidence](evidence/phase10-verification-2026-10-19.md). Keychain/filesystem fault injection on device remains pending.
 
 ## What changed
 
@@ -20,7 +20,7 @@
 3. A Keychain deletion error produces an incomplete-cleanup warning and blocks a new account sign-in. Retry after Keychain recovery can finish device cleanup.
 4. A terminal 401 purges A's cache/checkpoint even without `MainTabView.onDisappear` (observer-based invalidation) and prevents a closed cache actor from rewriting the deleted file.
 
-These are **tests added, not evidence of a test run**. Full Swift tests, xtool build and physical device checks must run before merge.
+These tests now pass in the full SwiftPM run on WSL. Tests of actor behavior do not simulate SwiftUI view identity or physical Keychain failure; the audit evidence distinguishes those limits.
 
 ## Reproducible verification on WSL
 

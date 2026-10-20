@@ -1,6 +1,6 @@
 # Phase 10 — Offline session restoration (incident: “Chưa thể mở phiên”)
 
-**Date:** 2026-10-19 · **Status:** code complete on branch, iPhone QA pending.
+**Date:** 2026-10-19 · **Audit update:** SwiftPM 168 tests / 18 suites and xtool build PASS. User confirmed offline force-quit/relaunch, cached words/Flashcards and reconnect on the installed app. Additional cache actor lifetime fix in the audit passed build/tests and needs device QA after installation. See [audit evidence](evidence/phase10-verification-2026-10-19.md); historical verification instructions below do not override this update.
 
 ## Root cause
 

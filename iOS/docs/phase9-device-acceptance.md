@@ -27,7 +27,7 @@ Verify your local branch/commit before doing this; the GitHub PR branch does not
 1. Install the exact candidate build using the documented WSL + xtool workflow. Record commit SHA, build version, device model and iOS version (not UDID or Apple ID).
 2. Open **Học → Luyện phát âm**. Verify audio playback at standard speed and the account's US/UK accent. Stop and switch utterances; expect no overlapping speech.
 3. Tap **Ghi âm**. On first request allow microphone access. Say `I would like a cup of tea.` for 3–5 seconds, stop, then use **Nghe bản ghi**. Expected: audible intelligible recording with a nonzero duration; no upload before explicit submit.
-4. Tap **Gửi chấm phát âm**, confirm. Expected: real response with score 0–100, transcript and feedback. A 503 means the server's Azure integration is not configured; a 422 can indicate speech/WAV rejection; 401 means session/auth needs checking. Record HTTP status and user-visible error **without tokens, audio or transcript**.
+4. Tap **Gửi chấm phát âm**, confirm. Expected: real response with score 0–100, transcript and feedback. A 503 can mean missing Azure configuration or provider unavailability; it does not identify the cause by itself. A 422 can indicate speech/WAV rejection; 401 means session/auth needs checking. Record HTTP status and user-visible error **without tokens, audio or transcript**.
 5. Record again, switch tabs/background the app, reopen. Expected: recording stops, old temporary clip is discarded; recording must not resume itself.
 6. Deny mic access in Settings; verify the app explains how to restore permission and does not start the recorder.
 7. Repeat with wired/Bluetooth microphone and disconnect during recording. Also try a phone call interruption and silent switch. Record pass/fail per scenario; do not imply unavailable accessories were tested.
@@ -59,11 +59,11 @@ Owner of staging/backend should verify without posting secrets:
 | iPhone model/iOS | NOT RUN |
 | iOS Swift test count + build | NOT RUN for this branch |
 | Backend WAV parser tests + build | NOT RUN for this branch |
-| Native mic permission/capture/preview | NOT VERIFIED |
-| Native recording WAV accepted by backend | NOT VERIFIED |
-| Azure pronunciation 2xx and feedback | NOT VERIFIED |
+| Native mic permission/capture/preview | User confirmed capture/preview in the guided device flow, 19/10/2026; denial not tested |
+| Native recording WAV accepted by backend | User confirmed successful scoring flow; client validates WAV before submit |
+| Azure pronunciation 2xx and feedback | User confirmed scoring flow; no independent HTTP capture or provider trace |
 | Azure unavailable / invalid WAV errors | NOT VERIFIED |
-| Dictation generate → explain | NOT VERIFIED |
+| Dictation generate → explain | User confirmed guided flow, 19/10/2026 |
 | Background/interruptions/Bluetooth/silent mode | NOT VERIFIED |
 | VoiceOver/Dynamic Type | NOT VERIFIED |
 | Memory/battery (60s recording) | NOT MEASURED |
