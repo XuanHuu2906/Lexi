@@ -10,73 +10,57 @@ import java.time.LocalDateTime;
 @Table(name = "review_logs")
 public class ReviewLog {
 
-    @Id
-    @Column(name = "id", nullable = false)
-    private String id;
+  @Id
+  @Column(name = "id", nullable = false)
+  private String id;
 
-    @ManyToOne(
-            fetch = FetchType.LAZY,
-            optional = false
-    )
-    @JoinColumn(
-            name = "\"userId\"",
-            nullable = false
-    )
-    private User user;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "\"userId\"", nullable = false)
+  private User user;
 
-    @ManyToOne(
-            fetch = FetchType.LAZY,
-            optional = false
-    )
-    @JoinColumn(
-            name = "\"wordId\"",
-            nullable = false
-    )
-    private Word word;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "\"wordId\"", nullable = false)
+  private Word word;
 
-    @Column(name = "quality", nullable = false)
-    private int quality;
+  @Column(name = "quality", nullable = false)
+  private int quality;
 
-    @Column(
-            name = "\"reviewedAt\"",
-            nullable = false
-    )
-    private LocalDateTime reviewedAt;
+  @Column(name = "\"reviewedAt\"", nullable = false)
+  private LocalDateTime reviewedAt;
 
-    protected ReviewLog() {
-    }
+  protected ReviewLog() {
+  }
 
-    public ReviewLog(
-            String id,
-            User user,
-            Word word,
-            int quality,
-            LocalDateTime reviewedAt
-    ) {
-        this.id = id;
-        this.user = user;
-        this.word = word;
-        this.quality = quality;
-        this.reviewedAt = reviewedAt;
-    }
+  public ReviewLog(
+      String id,
+      User user,
+      Word word,
+      int quality,
+      LocalDateTime reviewedAt) {
+    this.id = id;
+    this.user = user;
+    this.word = word;
+    this.quality = quality;
+    this.reviewedAt = reviewedAt;
+  }
 
-    public String getId() {
-        return id;
-    }
+  public String getId() {
+    return id;
+  }
 
-    public User getUser() {
-        return user;
-    }
+  public User getUser() {
+    return user;
+  }
 
-    public Word getWord() {
-        return word;
-    }
+  public Word getWord() {
+    return word;
+  }
 
-    public int getQuality() {
-        return quality;
-    }
+  public int getQuality() {
+    return quality;
+  }
 
-    public LocalDateTime getReviewedAt() {
-        return reviewedAt;
-    }
+  public LocalDateTime getReviewedAt() {
+    return reviewedAt;
+  }
 }

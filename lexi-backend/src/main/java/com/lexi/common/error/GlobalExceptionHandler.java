@@ -9,8 +9,10 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.lexi.security.auth.ConcurrentRefreshException;
 import com.lexi.security.auth.EmailAlreadyRegisteredException;
 import com.lexi.security.auth.InvalidCredentialsException;
+import com.lexi.security.auth.InvalidRefreshTokenException;
 import com.lexi.security.auth.LoginForbiddenException;
 import org.springframework.security.access.AccessDeniedException;
 import java.time.Clock;
@@ -169,4 +171,35 @@ public class GlobalExceptionHandler {
             request.getRequestURI(),
             Instant.now(clock)));
   }
+
+  @ExceptionHandler(InvalidRefreshTokenException.class)
+  public ResponseEntity<ApiErrorResponse> handleInvalidRefresh(
+      InvalidRefreshTokenException ex,
+      HttpServletRequest request) {
+
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(new ApiErrorResponse(
+            false,
+            401,
+            ex.getMessage(),
+            "Unauthorized",
+            request.getRequestURI(),
+            Instant.now(clock)));
+  }
+
+  @ExceptionHandler(ConcurrentRefreshException.class)
+  public ResponseEntity<ApiErrorResponse> handleConcurrentRefresh(
+      ConcurrentRefreshException ex,
+      HttpServletRequest request) {
+
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(new ApiErrorResponse(
+            false,
+            409,
+            ex.getMessage(),
+            "Conflict",
+            request.getRequestURI(),
+            Instant.now(clock)));
+  }
+
 }

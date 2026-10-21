@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/auth")
 public class AuthController {
 
+  private final RefreshService refreshService;
   private final LoginService loginService;
   private final RegisterService registerService;
   private final CookieService cookieService;
@@ -23,9 +24,11 @@ public class AuthController {
   public AuthController(
       LoginService loginService,
       RegisterService registerService,
+      RefreshService refreshService,
       CookieService cookieService) {
     this.loginService = loginService;
     this.registerService = registerService;
+    this.refreshService = refreshService;
     this.cookieService = cookieService;
   }
 
@@ -70,6 +73,27 @@ public class AuthController {
 
     return ResponseEntity.ok(
         ApiResponse.success(body));
+  }
+
+  @PostMapping("/refresh")
+  public ResponseEntity<ApiResponse<RefreshResponse>> refresh(
+      @CookieValue(name = "refresh_token", required = false) String rawToken,
+      HttpServletResponse response) {
+
+    SessionTokenService.IssuedTokens tokens = refreshService.refresh(rawToken);
+
+    cookieService.setAuthCookies(
+        response,
+        tokens.accessToken(),
+        tokens.refreshToken(),
+        tokens.csrfToken());
+
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            new RefreshResponse(tokens.csrfToken())));
+  }
+
+  public record RefreshResponse(String csrfToken) {
   }
 
   public record LoginResponse(
