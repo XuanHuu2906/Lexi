@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
@@ -27,6 +28,7 @@ export interface BatchLookupItem {
 
 @Injectable()
 export class WordsService {
+  private readonly logger = new Logger(WordsService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
@@ -43,7 +45,9 @@ export class WordsService {
    * option labels, dedupes, and explains each word. One failed word never
    * fails the others — its item carries an `error` instead of a `result`.
    */
-  async lookupBatch(dto: LookupBatchDto): Promise<{ items: BatchLookupItem[] }> {
+  async lookupBatch(
+    dto: LookupBatchDto,
+  ): Promise<{ items: BatchLookupItem[] }> {
     const terms = parseLookupTerms(dto.text);
     if (terms.length === 0) {
       throw new BadRequestException('No words found to look up');
@@ -86,6 +90,16 @@ export class WordsService {
       throw new ConflictException('This word is already in your notebook');
     }
 
+    // Enrich before saving so the returned notebook entry is complete. An AI
+    // outage must not discard a learner's manually entered vocabulary.
+    let details: Partial<CreateWordDto> = {};
+    try {
+      if (dto.enrich !== false) details = await this.missingDetails(dto);
+    } catch {
+      this.logger.warn(
+        'Vocabulary enrichment unavailable; saved supplied fields',
+      );
+    }
     return this.prisma.word.create({
       data: {
         userId,
@@ -93,15 +107,72 @@ export class WordsService {
         meaning: dto.meaning,
         phonetic: dto.phonetic,
         partOfSpeech: dto.partOfSpeech,
-        examples: dto.examples ?? [],
-        synonyms: dto.synonyms ?? [],
-        antonyms: dto.antonyms ?? [],
+        examples: details.examples ?? dto.examples ?? [],
+        synonyms: details.synonyms ?? dto.synonyms ?? [],
+        antonyms: details.antonyms ?? dto.antonyms ?? [],
         topic: dto.topic,
         note: dto.note,
         srsData: { create: {} }, // interval=1, easeFactor=2.5, nextReviewAt=now (schema defaults)
       },
       include: { srsData: true },
     });
+  }
+
+  /** Fill only absent content and only for the learner's exact word/sense. */
+  private async missingDetails(
+    dto: Pick<
+      CreateWordDto,
+      'term' | 'meaning' | 'examples' | 'synonyms' | 'antonyms'
+    >,
+  ) {
+    const missing = (values?: string[]) => !values?.some((v) => v.trim());
+    if (![dto.examples, dto.synonyms, dto.antonyms].some(missing)) return {};
+    const result = await this.ai.verifyVocab(dto.term.trim(), {
+      userMeaning: dto.meaning,
+    });
+    if (
+      !result.isValid ||
+      result.meaningVerdict !== 'match' ||
+      normalizeTerm(result.correctedTerm) !== normalizeTerm(dto.term)
+    )
+      return {};
+    const clean = (values: string[]) => [
+      ...new Set(values.map((v) => v.trim()).filter(Boolean)),
+    ];
+    const patch: Partial<
+      Pick<CreateWordDto, 'examples' | 'synonyms' | 'antonyms'>
+    > = {};
+    const examples = clean(
+      result.examples
+        .filter((e) => e.en.trim() && e.vi.trim())
+        .map((e) => `${e.en.trim()} — ${e.vi.trim()}`),
+    );
+    const synonyms = clean(result.synonyms);
+    const antonyms = clean(result.antonyms);
+    if (missing(dto.examples) && examples.length) patch.examples = examples;
+    if (missing(dto.synonyms) && synonyms.length) patch.synonyms = synonyms;
+    if (missing(dto.antonyms) && antonyms.length) patch.antonyms = antonyms;
+    return patch;
+  }
+
+  /** Backfill an existing entry without replacing concurrent edits or SRS data. */
+  async enrichMissing(userId: string, id: string) {
+    const word = await this.getOne(userId, id);
+    const details = await this.missingDetails(word);
+    if (!Object.keys(details).length) return { updated: false };
+    const result = await this.prisma.word.updateMany({
+      where: {
+        id,
+        userId,
+        term: word.term,
+        meaning: word.meaning,
+        examples: { equals: word.examples },
+        synonyms: { equals: word.synonyms },
+        antonyms: { equals: word.antonyms },
+      },
+      data: details,
+    });
+    return { updated: result.count === 1 };
   }
 
   /** UC21 — quick-add "term: meaning" + suggest TOEIC synonyms. */
@@ -130,12 +201,14 @@ export class WordsService {
     // Verify each AI suggestion against the TOEIC reference list: mark which are
     // real TOEIC-frequent words and surface those first. Also flag the term itself.
     const enrichedSynonyms = await this.markToeic(synonyms);
-    const isToeicTerm = (await this.toeicTerms([term])).has(normalizeTerm(term));
+    const isToeicTerm = (await this.toeicTerms([term])).has(
+      normalizeTerm(term),
+    );
 
     // Persist the suggested synonyms on the word so the notebook/detail modal can
     // show them later without a fresh lookup.
     let savedWord = word;
-    if (enrichedSynonyms.length > 0) {
+    if (enrichedSynonyms.length > 0 && word.synonyms.length === 0) {
       savedWord = await this.prisma.word.update({
         where: { id: word.id },
         data: { synonyms: enrichedSynonyms.map((s) => s.word) },
@@ -148,7 +221,9 @@ export class WordsService {
 
   /** Which of the given words exist in the TOEIC reference list (normalized set). */
   private async toeicTerms(words: string[]): Promise<Set<string>> {
-    const terms = [...new Set(words.map((w) => normalizeTerm(w)).filter(Boolean))];
+    const terms = [
+      ...new Set(words.map((w) => normalizeTerm(w)).filter(Boolean)),
+    ];
     if (terms.length === 0) return new Set();
     const rows = await this.prisma.toeicWord.findMany({
       where: { term: { in: terms } },

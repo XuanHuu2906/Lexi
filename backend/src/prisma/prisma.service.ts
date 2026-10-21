@@ -29,13 +29,9 @@ export class PrismaService
     try {
       await this.$connect();
       this.logger.log('Connected to database');
-    } catch (err) {
+    } catch {
       // Don't block startup on a DB outage — /health will report it as down.
-      this.logger.warn(
-        `Could not connect to database on startup: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
+      this.logger.warn('Could not connect to database on startup');
     }
   }
 

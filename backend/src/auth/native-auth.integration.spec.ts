@@ -51,7 +51,11 @@ describe('Native and web auth HTTP boundaries', () => {
   };
   const words = { create: jest.fn() };
   const review = { answer: jest.fn() };
-  const users = { getProfile: jest.fn(), updateSettings: jest.fn() };
+  const users = {
+    getProfile: jest.fn(),
+    updateSettings: jest.fn(),
+    deleteAccount: jest.fn(),
+  };
   let bearer: string;
 
   beforeEach(async () => {
@@ -71,6 +75,7 @@ describe('Native and web auth HTTP boundaries', () => {
     review.answer.mockResolvedValue({ status: 'LEARNING' });
     users.getProfile.mockResolvedValue({ id: user.id });
     users.updateSettings.mockResolvedValue({ dailyGoal: 10 });
+    users.deleteAccount.mockResolvedValue({ deleted: true });
     bearer = jwt.sign(
       { sub: user.id, email: user.email },
       { expiresIn: '15m' },
@@ -117,6 +122,42 @@ describe('Native and web auth HTTP boundaries', () => {
   afterEach(async () => {
     await app.close();
     jest.restoreAllMocks();
+  });
+
+  it('deletion uses authenticated identity, rejects body user IDs and preserves cookie CSRF', async () => {
+    const body = { password: 'synthetic-password', confirmation: 'DELETE' };
+    await request(app.getHttpServer())
+      .delete('/users/me')
+      .send(body)
+      .expect(401);
+    await request(app.getHttpServer())
+      .delete('/users/me')
+      .set('Cookie', `access_token=${bearer}`)
+      .send(body)
+      .expect(403);
+    await request(app.getHttpServer())
+      .delete('/users/me')
+      .set('Authorization', `Bearer ${bearer}`)
+      .send({ ...body, userId: 'other' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .delete('/users/me')
+      .set('Authorization', `Bearer ${bearer}`)
+      .send({ ...body, confirmation: 'yes' })
+      .expect(400);
+    const response = await request(app.getHttpServer())
+      .delete('/users/me')
+      .set('Authorization', `Bearer ${bearer}`)
+      .send(body)
+      .expect(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(users.deleteAccount).toHaveBeenCalledTimes(1);
+    expect(users.deleteAccount).toHaveBeenCalledWith(user.id, body);
+    await request(app.getHttpServer())
+      .delete('/users/me')
+      .set('Authorization', `Bearer ${bearer}`)
+      .send(body)
+      .expect(429);
   });
 
   it.each([

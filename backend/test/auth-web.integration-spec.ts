@@ -119,6 +119,115 @@ describe('Real Next /api rewrite -> Nest auth -> PostgreSQL', () => {
     await prisma.$disconnect();
   });
 
+  it('deletes only the confirmed account, cascades learning data and rejects every old credential', async () => {
+    const auth = app.get(AuthService);
+    const password = 'Synthetic-delete-password';
+    const first = await auth.register({
+      email: `${randomUUID()}@example.invalid`,
+      password,
+    });
+    const second = await auth.register({
+      email: `${randomUUID()}@example.invalid`,
+      password,
+    });
+    const anotherSession = await auth.login({
+      email: first.user.email,
+      password,
+    });
+    const userId = first.user.id;
+    const word = await prisma.word.create({
+      data: {
+        userId,
+        term: 'private-word',
+        meaning: 'private meaning',
+        srsData: { create: {} },
+      },
+    });
+    await prisma.reviewLog.create({
+      data: { userId, wordId: word.id, quality: 4 },
+    });
+    await prisma.grammarRule.create({
+      data: { userId, formula: 'S + V', explanation: 'private rule' },
+    });
+    await prisma.quizResult.create({
+      data: { userId, total: 1, questions: [{ private: true }] },
+    });
+    await prisma.conversationLog.create({
+      data: { userId, scenario: 'private conversation' },
+    });
+    await prisma.chatThread.create({
+      data: { userId, kind: 'TUTOR', title: 'private chat' },
+    });
+    await prisma.notification.create({
+      data: { userId, content: 'private reminder' },
+    });
+    await prisma.pushSubscription.create({
+      data: {
+        userId,
+        endpoint: `https://example.invalid/${randomUUID()}`,
+        p256dh: 'synthetic',
+        auth: 'synthetic',
+      },
+    });
+    const audit = await prisma.auditLog.create({
+      data: {
+        adminId: second.user.id,
+        adminEmail: second.user.email,
+        action: 'UNLOCK',
+        target: `Người dùng: ${first.user.email}`,
+        reason: 'private account reason',
+      },
+    });
+    const bearer = `Bearer ${first.tokens.accessToken}`;
+    await request(app.getHttpServer())
+      .delete('/users/me')
+      .set('Authorization', bearer)
+      .send({ password: 'wrong-password', confirmation: 'DELETE' })
+      .expect(403);
+    expect(await prisma.word.count({ where: { userId } })).toBe(1);
+    await request(app.getHttpServer())
+      .delete('/users/me')
+      .set('Authorization', bearer)
+      .send({ password, confirmation: 'DELETE' })
+      .expect(200);
+    const counts = await Promise.all([
+      prisma.user.count({ where: { id: userId } }),
+      prisma.word.count({ where: { userId } }),
+      prisma.srsData.count({ where: { wordId: word.id } }),
+      prisma.reviewLog.count({ where: { userId } }),
+      prisma.grammarRule.count({ where: { userId } }),
+      prisma.quizResult.count({ where: { userId } }),
+      prisma.conversationLog.count({ where: { userId } }),
+      prisma.chatThread.count({ where: { userId } }),
+      prisma.notification.count({ where: { userId } }),
+      prisma.pushSubscription.count({ where: { userId } }),
+      prisma.setting.count({ where: { userId } }),
+      prisma.streak.count({ where: { userId } }),
+      prisma.refreshToken.count({ where: { userId } }),
+    ]);
+    expect(counts.every((count) => count === 0)).toBe(true);
+    const scrubbed = await prisma.auditLog.findUniqueOrThrow({
+      where: { id: audit.id },
+    });
+    expect(scrubbed.target).toBe('Người dùng đã xóa');
+    expect(scrubbed.reason).toBeNull();
+    expect(await prisma.user.count({ where: { id: second.user.id } })).toBe(1);
+    for (const session of [first.tokens, anotherSession.tokens]) {
+      await request(app.getHttpServer())
+        .get('/users/me')
+        .set('Authorization', `Bearer ${session.accessToken}`)
+        .expect(401);
+      await request(app.getHttpServer())
+        .post('/auth/mobile/refresh')
+        .send({ refreshToken: session.refreshToken })
+        .expect(401);
+    }
+    await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Authorization', `Bearer ${second.tokens.accessToken}`)
+      .expect(200);
+  });
+
   it('preserves browser cookie paths, CSRF, refresh/logout and shares the native account', async () => {
     const account = {
       email: `${randomUUID()}@example.invalid`,

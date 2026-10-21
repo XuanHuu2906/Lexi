@@ -77,6 +77,8 @@ export function buildVocabVerifySpec(
       `2) EXPLAIN the correct (most-likely intended) word for the learner: authoritative Vietnamese meaning, IPA phonetic, ` +
       `part of speech, a concise English definition, 2–3 example sentences (English + Vietnamese), common synonyms and antonyms, ` +
       `and a short Vietnamese usage/context note. ` +
+      `When the learner meaning is valid, use that specific sense for all examples and related words. ` +
+      `Only return genuine antonyms for that sense; return [] when no natural antonym exists. Never invent an opposite. ` +
       `Leave a field as an empty string or empty array when not applicable.`,
     messages: [
       {

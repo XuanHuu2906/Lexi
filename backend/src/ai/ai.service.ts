@@ -217,7 +217,9 @@ export class AiService {
       const res = await this.runJson<{ feedback: string }>(
         buildPronunciationFeedbackSpec(reference, assessment),
       );
-      feedback = res.feedback?.trim() || buildAzureFeedbackFallback(assessment, mispronounced);
+      feedback =
+        res.feedback?.trim() ||
+        buildAzureFeedbackFallback(assessment, mispronounced);
     } catch (err) {
       this.logger.warn(
         `Pronunciation feedback generation failed, using template: ${String(err)}`,
@@ -395,20 +397,20 @@ export class AiService {
     if (err instanceof OpenAI.APIError) {
       const status: number = (err.status as number | undefined) ?? 503;
       const retryable = status === 429 || status >= 500;
-      this.logger.error(`AI provider error ${status}: ${err.message}`);
+      this.logger.error(`AI provider request failed (${status})`);
       return new ServiceUnavailableException({
         message: 'AI request failed, please try again',
         retryable,
       });
     }
     if (err instanceof SyntaxError) {
-      this.logger.error(`Failed to parse AI JSON response: ${err.message}`);
+      this.logger.error('Failed to parse AI JSON response');
       return new ServiceUnavailableException({
         message: 'AI returned malformed data, please try again',
         retryable: true,
       });
     }
-    this.logger.error(`Unexpected AI error: ${String(err)}`);
+    this.logger.error('Unexpected AI request failure');
     return new ServiceUnavailableException({
       message: 'AI request failed, please try again',
       retryable: true,
