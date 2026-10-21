@@ -17,6 +17,8 @@ function setup() {
     isValid: true,
     correctedTerm: 'increase',
     meaningVerdict: 'match',
+    phonetic: '/ɪnˈkriːs/',
+    partOfSpeech: 'verb',
     examples: [{ en: 'Sales increase.', vi: 'Doanh số tăng.' }],
     synonyms: ['grow'],
     antonyms: ['decrease'],
@@ -48,6 +50,8 @@ describe('Notebook enrichment', () => {
     expect(ai.verifyVocab).not.toHaveBeenCalled();
     expect(saved.examples).toEqual([]);
     expect(saved.meaning).toBe('tăng');
+    expect(saved.phonetic).toBeUndefined();
+    expect(saved.partOfSpeech).toBeUndefined();
   });
   it('fills manual entries while preserving their meaning, notes and supplied examples', async () => {
     const { service, word } = setup();
@@ -56,12 +60,16 @@ describe('Notebook enrichment', () => {
       meaning: 'tăng',
       examples: ['My example.'],
       note: 'mine',
+      phonetic: '/my transcription/',
+      partOfSpeech: 'my word class',
     });
     expect(word.create.mock.calls[0][0].data).toMatchObject({
       userId: 'a',
       meaning: 'tăng',
       examples: ['My example.'],
       note: 'mine',
+      phonetic: '/my transcription/',
+      partOfSpeech: 'my word class',
       synonyms: ['grow'],
       antonyms: ['decrease'],
     });
@@ -72,6 +80,44 @@ describe('Notebook enrichment', () => {
     const result = await service.quickAdd('a', { text: 'increase: tăng' });
     expect(result.word.examples).toEqual(['Sales increase. — Doanh số tăng.']);
     expect(result.word.antonyms).toEqual(['decrease']);
+    expect(result.word.phonetic).toBe('/ɪnˈkriːs/');
+    expect(result.word.partOfSpeech).toBe('verb');
+  });
+
+  it('fills missing pronunciation and word class even when other details are complete', async () => {
+    const { service, ai } = setup();
+    const saved = await service.create('a', {
+      term: 'increase',
+      meaning: 'tăng',
+      phonetic: '   ',
+      examples: ['My example.'],
+      synonyms: ['grow'],
+      antonyms: ['decrease'],
+      enrich: true,
+    });
+    expect(ai.verifyVocab).toHaveBeenCalledTimes(1);
+    expect(saved).toMatchObject({
+      phonetic: '/ɪnˈkriːs/',
+      partOfSpeech: 'verb',
+      meaning: 'tăng',
+      examples: ['My example.'],
+    });
+  });
+
+  it('keeps pronunciation and word class absent when AI returns blank values', async () => {
+    const { service, ai } = setup();
+    ai.verifyVocab.mockResolvedValue({
+      ...(await ai.verifyVocab()),
+      phonetic: ' ',
+      partOfSpeech: '',
+    });
+    const saved = await service.create('a', {
+      term: 'increase',
+      meaning: 'tăng',
+    });
+    expect(saved.phonetic).toBeUndefined();
+    expect(saved.partOfSpeech).toBeUndefined();
+    expect(saved.examples).toHaveLength(1);
   });
 
   it('skips AI for complete entries and rejects duplicates before spending an AI call', async () => {
@@ -80,6 +126,8 @@ describe('Notebook enrichment', () => {
       term: 'increase',
       meaning: 'tăng',
       examples: ['x'],
+      phonetic: '/ɪnˈkriːs/',
+      partOfSpeech: 'verb',
       synonyms: ['grow'],
       antonyms: ['decrease'],
     });
@@ -111,6 +159,8 @@ describe('Notebook enrichment', () => {
       expect(saved.meaning).toBe('my meaning');
       expect(saved.examples).toEqual([]);
       expect(saved.antonyms).toEqual([]);
+      expect(saved.phonetic).toBeUndefined();
+      expect(saved.partOfSpeech).toBeUndefined();
     },
   );
 
@@ -121,6 +171,8 @@ describe('Notebook enrichment', () => {
       userId: 'a',
       term: 'increase',
       meaning: 'tăng',
+      phonetic: null,
+      partOfSpeech: 'verb',
       examples: [],
       synonyms: ['my synonym'],
       antonyms: [],
@@ -140,11 +192,14 @@ describe('Notebook enrichment', () => {
         userId: 'a',
         term: 'increase',
         meaning: 'tăng',
+        phonetic: null,
+        partOfSpeech: 'verb',
         examples: { equals: [] },
         synonyms: { equals: ['my synonym'] },
         antonyms: { equals: [] },
       },
       data: {
+        phonetic: '/ɪnˈkriːs/',
         examples: ['Sales increase. — Doanh số tăng.'],
         antonyms: ['decrease'],
       },

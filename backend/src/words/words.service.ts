@@ -105,8 +105,8 @@ export class WordsService {
         userId,
         term,
         meaning: dto.meaning,
-        phonetic: dto.phonetic,
-        partOfSpeech: dto.partOfSpeech,
+        phonetic: details.phonetic ?? dto.phonetic,
+        partOfSpeech: details.partOfSpeech ?? dto.partOfSpeech,
         examples: details.examples ?? dto.examples ?? [],
         synonyms: details.synonyms ?? dto.synonyms ?? [],
         antonyms: details.antonyms ?? dto.antonyms ?? [],
@@ -123,10 +123,16 @@ export class WordsService {
     dto: Pick<
       CreateWordDto,
       'term' | 'meaning' | 'examples' | 'synonyms' | 'antonyms'
-    >,
+    > & { phonetic?: string | null; partOfSpeech?: string | null },
   ) {
     const missing = (values?: string[]) => !values?.some((v) => v.trim());
-    if (![dto.examples, dto.synonyms, dto.antonyms].some(missing)) return {};
+    const missingText = (value?: string | null) => !value?.trim();
+    if (
+      !missingText(dto.phonetic) &&
+      !missingText(dto.partOfSpeech) &&
+      ![dto.examples, dto.synonyms, dto.antonyms].some(missing)
+    )
+      return {};
     const result = await this.ai.verifyVocab(dto.term.trim(), {
       userMeaning: dto.meaning,
     });
@@ -140,8 +146,15 @@ export class WordsService {
       ...new Set(values.map((v) => v.trim()).filter(Boolean)),
     ];
     const patch: Partial<
-      Pick<CreateWordDto, 'examples' | 'synonyms' | 'antonyms'>
+      Pick<
+        CreateWordDto,
+        'phonetic' | 'partOfSpeech' | 'examples' | 'synonyms' | 'antonyms'
+      >
     > = {};
+    if (missingText(dto.phonetic) && result.phonetic?.trim())
+      patch.phonetic = result.phonetic.trim();
+    if (missingText(dto.partOfSpeech) && result.partOfSpeech?.trim())
+      patch.partOfSpeech = result.partOfSpeech.trim();
     const examples = clean(
       result.examples
         .filter((e) => e.en.trim() && e.vi.trim())
@@ -166,6 +179,8 @@ export class WordsService {
         userId,
         term: word.term,
         meaning: word.meaning,
+        phonetic: word.phonetic,
+        partOfSpeech: word.partOfSpeech,
         examples: { equals: word.examples },
         synonyms: { equals: word.synonyms },
         antonyms: { equals: word.antonyms },
