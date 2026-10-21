@@ -58,6 +58,9 @@ public class SecurityConfig {
     http
         .authorizeHttpRequests(auth -> auth
 
+            .requestMatchers(HttpMethod.POST, "/auth/refresh")
+            .permitAll()
+
             .requestMatchers(
                 HttpMethod.POST,
                 "/auth/login")

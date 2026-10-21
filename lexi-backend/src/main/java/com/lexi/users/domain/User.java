@@ -182,4 +182,10 @@ public class User {
     lastActiveAt = now;
     updatedAt = now;
   }
+
+  public void recordSessionActivity(LocalDateTime now) {
+    this.lastActiveAt = now;
+    this.updatedAt = now;
+  }
+
 }
