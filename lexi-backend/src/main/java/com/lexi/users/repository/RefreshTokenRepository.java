@@ -31,4 +31,16 @@ public interface RefreshTokenRepository
   int revokeAllActiveByUserId(
       @Param("userId") String userId,
       @Param("now") LocalDateTime now);
+
+  @Modifying(flushAutomatically = true)
+  @Query(value = """
+      UPDATE refresh_tokens
+      SET "revokedAt" = :now
+      WHERE "tokenHash" = :tokenHash
+        AND "revokedAt" IS NULL
+      """, nativeQuery = true)
+  int revokeActiveByTokenHash(
+      @Param("tokenHash") String tokenHash,
+      @Param("now") LocalDateTime now);
+
 }

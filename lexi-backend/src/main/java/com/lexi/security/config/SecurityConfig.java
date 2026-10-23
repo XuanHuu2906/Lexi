@@ -1,8 +1,6 @@
 
 package com.lexi.security.config;
 
-import jakarta.servlet.http.HttpServletResponse;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -75,6 +73,11 @@ public class SecurityConfig {
             .requestMatchers(
                 HttpMethod.GET,
                 "/health")
+            .permitAll()
+
+            .requestMatchers(
+                HttpMethod.POST,
+                "/auth/logout")
             .permitAll()
 
             // Mặc định: mọi endpoint khác cần xác thực

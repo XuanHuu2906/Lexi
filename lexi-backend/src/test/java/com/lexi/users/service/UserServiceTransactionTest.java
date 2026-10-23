@@ -11,6 +11,9 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+
+import com.lexi.common.time.AppClockConfig;
+
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -20,7 +23,10 @@ import org.junit.jupiter.api.BeforeEach;
 
 @DataJpaTest
 @Testcontainers
-@Import(UserService.class)
+@Import({
+    UserService.class,
+    AppClockConfig.class
+})
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class UserServiceTransactionTest {
 

@@ -9,15 +9,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface WordRepository
-                extends JpaRepository<Word, String> {
-        List<Word> findAllByUser_Id(String userId);
+    extends JpaRepository<Word, String> {
+  List<Word> findAllByUser_Id(String userId);
 
-        @Query("""
-                        select distinct w
-                        from Word w
-                        left join fetch w.reviewLogs
-                        where w.user.id = :userId
-                        """)
-        List<Word> findAllWithReviewLogsByUserId(
-                        @Param("userId") String userId);
+  @Query("""
+      select distinct w
+      from Word w
+      left join fetch w.reviewLogs
+      where w.user.id = :userId
+      """)
+  List<Word> findAllWithReviewLogsByUserId(
+      @Param("userId") String userId);
+
+  boolean existsByUser_IdAndTerm(String userId, String term);
 }

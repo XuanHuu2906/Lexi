@@ -59,7 +59,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     boolean isRefresh = "POST".equals(method)
         && (contextPath + "/auth/refresh").equals(path);
 
-    return isHealth || isRegister || isLogin || isRefresh;
+    boolean isLogout = "POST".equals(method)
+        && (contextPath + "/auth/logout").equals(path);
+
+    return isHealth || isRegister || isLogin || isRefresh || isLogout;
 
   }
 

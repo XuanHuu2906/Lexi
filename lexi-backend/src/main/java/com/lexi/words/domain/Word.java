@@ -17,137 +17,164 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "words")
 public class Word {
 
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "examples", nullable = false, columnDefinition = "text[]")
-    private List<String> examples = new ArrayList<>();
+  @JdbcTypeCode(SqlTypes.ARRAY)
+  @Column(name = "examples", nullable = false, columnDefinition = "text[]")
+  private List<String> examples = new ArrayList<>();
 
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "synonyms", nullable = false, columnDefinition = "text[]")
-    private List<String> synonyms = new ArrayList<>();
+  @JdbcTypeCode(SqlTypes.ARRAY)
+  @Column(name = "synonyms", nullable = false, columnDefinition = "text[]")
+  private List<String> synonyms = new ArrayList<>();
 
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "antonyms", nullable = false, columnDefinition = "text[]")
-    private List<String> antonyms = new ArrayList<>();
+  @JdbcTypeCode(SqlTypes.ARRAY)
+  @Column(name = "antonyms", nullable = false, columnDefinition = "text[]")
+  private List<String> antonyms = new ArrayList<>();
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "status", nullable = false, columnDefinition = "\"WordStatus\"")
-    private WordStatus status;
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @Column(name = "status", nullable = false, columnDefinition = "\"WordStatus\"")
+  private WordStatus status;
 
-    @OneToMany(mappedBy = "word", fetch = FetchType.LAZY)
-    private List<ReviewLog> reviewLogs = new ArrayList<>();
+  @OneToMany(mappedBy = "word", fetch = FetchType.LAZY)
+  private List<ReviewLog> reviewLogs = new ArrayList<>();
 
-    @Id
-    @Column(name = "id", nullable = false)
-    private String id;
+  @Id
+  @Column(name = "id", nullable = false)
+  private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "\"userId\"", nullable = false)
-    private User user;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "\"userId\"", nullable = false)
+  private User user;
 
-    @Column(name = "term", nullable = false)
-    private String term;
+  @Column(name = "term", nullable = false)
+  private String term;
 
-    @Column(name = "meaning", nullable = false)
-    private String meaning;
+  @Column(name = "meaning", nullable = false)
+  private String meaning;
 
-    @Column(name = "phonetic")
-    private String phonetic;
+  @Column(name = "phonetic")
+  private String phonetic;
 
-    @Column(name = "\"partOfSpeech\"")
-    private String partOfSpeech;
+  @Column(name = "\"partOfSpeech\"")
+  private String partOfSpeech;
 
-    @Column(name = "topic")
-    private String topic;
+  @Column(name = "topic")
+  private String topic;
 
-    @Column(name = "note")
-    private String note;
+  @Column(name = "note")
+  private String note;
 
-    @Column(name = "\"quizzedInCycle\"", nullable = false)
-    private boolean quizzedInCycle;
+  @Column(name = "\"quizzedInCycle\"", nullable = false)
+  private boolean quizzedInCycle;
 
-    @Column(name = "\"createdAt\"", nullable = false)
-    private LocalDateTime createdAt;
+  @Column(name = "\"createdAt\"", nullable = false)
+  private LocalDateTime createdAt;
 
-    @Column(name = "\"updatedAt\"", nullable = false)
-    private LocalDateTime updatedAt;
+  @Column(name = "\"updatedAt\"", nullable = false)
+  private LocalDateTime updatedAt;
 
-    protected Word() {
+  protected Word() {
+  }
+
+  public Word(
+
+      String id,
+      User user,
+      String term,
+      String meaning,
+      LocalDateTime now) {
+    this.status = WordStatus.NEW;
+    this.id = id;
+    this.user = user;
+    this.term = term;
+    this.meaning = meaning;
+    this.quizzedInCycle = false;
+    this.createdAt = now;
+    this.updatedAt = now;
+  }
+
+  public List<ReviewLog> getReviewLogs() {
+    return reviewLogs;
+  }
+
+  public String getId() {
+    return id;
+  }
+
+  public User getUserId() {
+    return user;
+  }
+
+  public String getTerm() {
+    return term;
+  }
+
+  public String getMeaning() {
+    return meaning;
+  }
+
+  public WordStatus getStatus() {
+    return status;
+  }
+
+  public void changeStatus(WordStatus newStatus) {
+    if (newStatus == null) {
+      throw new IllegalArgumentException(
+          "Word status must not be null");
     }
 
-    public Word(
+    this.status = newStatus;
+  }
 
-            String id,
-            User user,
-            String term,
-            String meaning,
-            LocalDateTime now) {
-        this.status = WordStatus.NEW;
-        this.id = id;
-        this.user = user;
-        this.term = term;
-        this.meaning = meaning;
-        this.quizzedInCycle = false;
-        this.createdAt = now;
-        this.updatedAt = now;
-    }
+  public void appendExamples(
+      List<String> newExamples,
+      LocalDateTime now) {
+    Objects.requireNonNull(newExamples);
+    Objects.requireNonNull(now);
 
-    public List<ReviewLog> getReviewLogs() {
-        return reviewLogs;
-    }
+    List<String> updated = new ArrayList<>(this.examples);
 
-    public String getId() {
-        return id;
-    }
+    updated.addAll(newExamples);
 
-    public User getUserId() {
-        return user;
-    }
+    this.examples = updated;
+    this.updatedAt = now;
+  }
 
-    public String getTerm() {
-        return term;
-    }
+  public List<String> getExamples() {
+    return new ArrayList<>(examples);
+  }
 
-    public String getMeaning() {
-        return meaning;
-    }
+  public List<String> getSynonyms() {
+    return new ArrayList<>(synonyms);
+  }
 
-    public WordStatus getStatus() {
-        return status;
-    }
+  public List<String> getAntonyms() {
+    return new ArrayList<>(antonyms);
+  }
 
-    public void changeStatus(WordStatus newStatus) {
-        if (newStatus == null) {
-            throw new IllegalArgumentException(
-                    "Word status must not be null");
-        }
+  public void applyCreateDetails(
+      String phonetic,
+      String partOfSpeech,
+      List<String> examples,
+      List<String> synonyms,
+      List<String> antonyms,
+      String topic,
+      String note) {
+    this.phonetic = phonetic;
+    this.partOfSpeech = partOfSpeech;
 
-        this.status = newStatus;
-    }
+    this.examples = examples == null
+        ? new ArrayList<>()
+        : new ArrayList<>(examples);
 
-    public void appendExamples(
-            List<String> newExamples,
-            LocalDateTime now) {
-        Objects.requireNonNull(newExamples);
-        Objects.requireNonNull(now);
+    this.synonyms = synonyms == null
+        ? new ArrayList<>()
+        : new ArrayList<>(synonyms);
 
-        List<String> updated = new ArrayList<>(this.examples);
+    this.antonyms = antonyms == null
+        ? new ArrayList<>()
+        : new ArrayList<>(antonyms);
 
-        updated.addAll(newExamples);
-
-        this.examples = updated;
-        this.updatedAt = now;
-    }
-
-    public List<String> getExamples() {
-        return new ArrayList<>(examples);
-    }
-
-    public List<String> getSynonyms() {
-        return new ArrayList<>(synonyms);
-    }
-
-    public List<String> getAntonyms() {
-        return new ArrayList<>(antonyms);
-    }
+    this.topic = topic;
+    this.note = note;
+  }
 }
