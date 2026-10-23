@@ -177,4 +177,36 @@ public class Word {
     this.topic = topic;
     this.note = note;
   }
+
+  public User getUser() {
+    return user;
+  }
+
+  public String getPhonetic() {
+    return phonetic;
+  }
+
+  public String getPartOfSpeech() {
+    return partOfSpeech;
+  }
+
+  public String getTopic() {
+    return topic;
+  }
+
+  public String getNote() {
+    return note;
+  }
+
+  public boolean isQuizzedInCycle() {
+    return quizzedInCycle;
+  }
+
+  public LocalDateTime getCreatedAt() {
+    return createdAt;
+  }
+
+  public LocalDateTime getUpdatedAt() {
+    return updatedAt;
+  }
 }

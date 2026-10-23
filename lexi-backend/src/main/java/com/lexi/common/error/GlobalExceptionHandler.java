@@ -18,6 +18,7 @@ import org.springframework.security.access.AccessDeniedException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import com.lexi.words.service.WordAlreadyExistsException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -198,6 +199,21 @@ public class GlobalExceptionHandler {
             409,
             ex.getMessage(),
             "Conflict",
+            request.getRequestURI(),
+            Instant.now(clock)));
+  }
+
+  @ExceptionHandler(WordAlreadyExistsException.class)
+  public ResponseEntity<ApiErrorResponse> handleWordAlreadyExists(
+      WordAlreadyExistsException exception,
+      HttpServletRequest request) {
+    return ResponseEntity
+        .status(HttpStatus.CONFLICT)
+        .body(new ApiErrorResponse(
+            false,
+            HttpStatus.CONFLICT.value(),
+            exception.getMessage(),
+            HttpStatus.CONFLICT.getReasonPhrase(),
             request.getRequestURI(),
             Instant.now(clock)));
   }
