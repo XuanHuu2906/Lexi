@@ -20,8 +20,10 @@ public class AuthController {
   private final LoginService loginService;
   private final RegisterService registerService;
   private final CookieService cookieService;
+  private final LogoutService logoutService;
 
   public AuthController(
+      LogoutService logoutService,
       LoginService loginService,
       RegisterService registerService,
       RefreshService refreshService,
@@ -30,6 +32,7 @@ public class AuthController {
     this.registerService = registerService;
     this.refreshService = refreshService;
     this.cookieService = cookieService;
+    this.logoutService = logoutService;
   }
 
   @PostMapping("/register")
@@ -91,6 +94,26 @@ public class AuthController {
     return ResponseEntity.ok(
         ApiResponse.success(
             new RefreshResponse(tokens.csrfToken())));
+  }
+
+  @PostMapping("/logout")
+  public ResponseEntity<ApiResponse<LogoutResponse>> logout(
+      @CookieValue(name = "refresh_token", required = false) String rawToken,
+      HttpServletResponse response) {
+
+    // 1. Thu hồi refresh token trước.
+    logoutService.logout(rawToken);
+
+    // 2. Xóa cookie sau khi revoke thành công.
+    cookieService.clearAuthCookies(response);
+
+    // 3. Trả HTTP 200.
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            new LogoutResponse("Logged out")));
+  }
+
+  public record LogoutResponse(String message) {
   }
 
   public record RefreshResponse(String csrfToken) {
