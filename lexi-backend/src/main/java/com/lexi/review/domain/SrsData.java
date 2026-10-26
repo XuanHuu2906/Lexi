@@ -4,6 +4,8 @@ import com.lexi.words.domain.Word;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import com.lexi.review.sm2.Sm2Result;
+import java.util.Objects;
 
 @Entity
 @Table(name = "srs_data")
@@ -85,4 +87,28 @@ public class SrsData {
   public LocalDateTime getNextReviewAt() {
     return nextReviewAt;
   }
+
+  public void applyReview(
+      Sm2Result result,
+      int quality,
+      LocalDateTime reviewedAtUtc,
+      LocalDateTime nextReviewAtUtc) {
+    Objects.requireNonNull(result);
+    Objects.requireNonNull(reviewedAtUtc);
+    Objects.requireNonNull(nextReviewAtUtc);
+
+    if (quality < 0 || quality > 5) {
+      throw new IllegalArgumentException(
+          "quality must be between 0 and 5");
+    }
+
+    this.interval = result.interval();
+    this.easeFactor = result.easeFactor();
+    this.repetitions = result.repetitions();
+
+    this.lastQuality = quality;
+    this.lastReviewedAt = reviewedAtUtc;
+    this.nextReviewAt = nextReviewAtUtc;
+  }
+
 }

@@ -6,9 +6,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface ReviewLogRepository
-        extends JpaRepository<ReviewLog, String> {
+    extends JpaRepository<ReviewLog, String> {
 
-    List<ReviewLog> findAllByWord_Id(String wordId);
+  List<ReviewLog> findAllByWord_Id(String wordId);
 
-    List<ReviewLog> findAllByUser_Id(String userId);
+  List<ReviewLog> findAllByUser_Id(String userId);
+
+  List<ReviewLog> findTop10ByWord_IdOrderByReviewedAtDescIdDesc(
+      String wordId);
+
 }

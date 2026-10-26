@@ -209,4 +209,13 @@ public class Word {
   public LocalDateTime getUpdatedAt() {
     return updatedAt;
   }
+
+  public void changeStatus(
+      WordStatus newStatus,
+      LocalDateTime now) {
+    changeStatus(newStatus);
+
+    this.updatedAt = Objects.requireNonNull(now);
+  }
+
 }
