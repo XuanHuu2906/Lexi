@@ -1,3 +1,4 @@
+
 package com.lexi.words.repository;
 
 import com.lexi.words.domain.Word;
@@ -5,11 +6,15 @@ import com.lexi.words.domain.Word;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import java.util.Optional;
 
 public interface WordRepository
-    extends JpaRepository<Word, String> {
+    extends JpaRepository<Word, String>,
+    JpaSpecificationExecutor<Word> {
+
   List<Word> findAllByUser_Id(String userId);
 
   @Query("""
@@ -21,5 +26,12 @@ public interface WordRepository
   List<Word> findAllWithReviewLogsByUserId(
       @Param("userId") String userId);
 
-  boolean existsByUser_IdAndTerm(String userId, String term);
+  boolean existsByUser_IdAndTerm(
+      String userId,
+      String term);
+
+  Optional<Word> findByIdAndUser_Id(
+      String id,
+      String userId);
+
 }

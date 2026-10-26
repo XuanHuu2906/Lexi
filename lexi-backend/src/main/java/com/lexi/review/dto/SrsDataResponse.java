@@ -1,4 +1,3 @@
-
 package com.lexi.review.dto;
 
 import com.lexi.review.domain.SrsData;
@@ -13,19 +12,20 @@ public record SrsDataResponse(
     int repetitions,
     Integer lastQuality,
     LocalDateTime lastReviewedAt,
-    LocalDateTime nextReviewAt
-) {
+    LocalDateTime nextReviewAt) {
 
-    public static SrsDataResponse from(SrsData srsData) {
-        return new SrsDataResponse(
-            srsData.getId(),
-            srsData.getWord().getId(),
-            srsData.getInterval(),
-            srsData.getEaseFactor(),
-            srsData.getRepetitions(),
-            srsData.getLastQuality(),
-            srsData.getLastReviewedAt(),
-            srsData.getNextReviewAt()
-        );
-    }
+  public static SrsDataResponse from(SrsData srsData) {
+    return new SrsDataResponse(
+        srsData.getId(),
+        srsData.getWord().getId(),
+        srsData.getInterval(),
+        srsData.getEaseFactor(),
+        srsData.getRepetitions(),
+        srsData.getLastQuality(),
+        srsData.getLastReviewedAt(),
+        srsData.getNextReviewAt()
+
+    );
+  }
+
 }
