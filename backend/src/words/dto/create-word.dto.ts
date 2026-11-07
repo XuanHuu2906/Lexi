@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
+  IsBoolean,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -8,6 +9,13 @@ import {
 } from 'class-validator';
 
 export class CreateWordDto {
+  @ApiPropertyOptional({
+    description: 'Set false to save without third-party AI processing',
+  })
+  @IsOptional()
+  @IsBoolean()
+  enrich?: boolean;
+
   @ApiProperty({ example: 'serendipity' })
   @IsString()
   @IsNotEmpty()

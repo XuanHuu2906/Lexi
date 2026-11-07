@@ -39,18 +39,14 @@ let AllExceptionsFilter = AllExceptionsFilter_1 = class AllExceptionsFilter {
             error = exception.name;
         }
         if (status >= 500) {
-            if (isAuth) {
-                this.logger.error(`Authentication request failed (${status})`);
-            }
-            else
-                this.logger.error(`${request.method} ${request.url}`, exception instanceof Error ? exception.stack : String(exception));
+            this.logger.error(`${isAuth ? 'Authentication' : request.method} request failed (${status})`);
         }
         const body = {
             success: false,
             statusCode: status,
             message,
             error,
-            path: isAuth ? pathWithoutQuery : request.url,
+            path: pathWithoutQuery,
             timestamp: new Date().toISOString(),
         };
         response.status(status).json(body);

@@ -31,6 +31,12 @@ export class QuizController {
     return this.quizService.submit(userId, dto);
   }
 
+  @Get('latest')
+  @ApiOperation({ summary: 'Find the latest quiz for this account across devices' })
+  latest(@CurrentUser('userId') userId: string) {
+    return this.quizService.latest(userId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Resume a quiz (answers hidden until submitted)' })
   get(@CurrentUser('userId') userId: string, @Param('id') id: string) {

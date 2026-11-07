@@ -143,8 +143,8 @@ export class NotificationService {
       try {
         await this.remindUser(userId, now);
         sent++;
-      } catch (err) {
-        this.logger.warn(`Reminder for ${userId} failed: ${String(err)}`);
+      } catch {
+        this.logger.warn('Reminder delivery failed');
       }
     }
     if (userIds.length) {

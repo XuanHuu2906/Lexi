@@ -38,11 +38,11 @@ let EmailService = EmailService_1 = class EmailService {
                 html,
             });
             if (error) {
-                this.logger.warn(`Email to ${to} rejected: ${error.message}`);
+                this.logger.warn('Email provider rejected delivery');
             }
         }
-        catch (err) {
-            this.logger.warn(`Email to ${to} failed: ${String(err)}`);
+        catch {
+            this.logger.warn('Email delivery failed');
         }
     }
 };

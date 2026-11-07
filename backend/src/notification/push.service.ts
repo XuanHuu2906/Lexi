@@ -55,7 +55,7 @@ export class PushService implements OnModuleInit {
             // Subscription expired/unsubscribed — remove it.
             await this.prisma.pushSubscription.delete({ where: { id: s.id } });
           } else {
-            this.logger.warn(`Push to ${s.endpoint} failed: ${String(err)}`);
+            this.logger.warn('Push delivery failed');
           }
         }
       }),

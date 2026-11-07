@@ -135,6 +135,8 @@ export class ReviewService {
         meaning: w.meaning,
         phonetic: w.phonetic,
         examples: w.examples,
+        synonyms: w.synonyms,
+        antonyms: w.antonyms,
       };
       if (mode === 'guess' || mode === 'listen') {
         return { ...base, ...this.buildOptions(w.meaning, meanings) };

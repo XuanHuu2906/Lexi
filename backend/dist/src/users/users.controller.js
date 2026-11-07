@@ -14,10 +14,12 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersController = void 0;
 const common_1 = require("@nestjs/common");
+const throttler_1 = require("@nestjs/throttler");
 const swagger_1 = require("@nestjs/swagger");
 const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
 const update_settings_dto_1 = require("./dto/update-settings.dto");
 const users_service_1 = require("./users.service");
+const delete_account_dto_1 = require("./dto/delete-account.dto");
 let UsersController = class UsersController {
     usersService;
     constructor(usersService) {
@@ -25,6 +27,9 @@ let UsersController = class UsersController {
     }
     getMe(userId) {
         return this.usersService.getProfile(userId);
+    }
+    deleteMe(userId, dto) {
+        return this.usersService.deleteAccount(userId, dto);
     }
     updateSettings(userId, dto) {
         return this.usersService.updateSettings(userId, dto);
@@ -41,6 +46,19 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "getMe", null);
+__decorate([
+    (0, common_1.Delete)('me'),
+    (0, common_1.Header)('Cache-Control', 'no-store'),
+    (0, throttler_1.Throttle)({ default: { limit: 5, ttl: 60_000 } }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Permanently delete the authenticated account after password confirmation',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)('userId')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, delete_account_dto_1.DeleteAccountDto]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "deleteMe", null);
 __decorate([
     (0, common_1.Patch)('me/settings'),
     (0, swagger_1.ApiOperation)({ summary: 'Update personal settings' }),

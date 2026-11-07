@@ -1,5 +1,6 @@
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { UsersService } from './users.service';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 export declare class UsersController {
     private readonly usersService;
     constructor(usersService: UsersService);
@@ -32,6 +33,9 @@ export declare class UsersController {
             streakFreezes: number;
             lastActiveDate: Date | null;
         } | null;
+    }>;
+    deleteMe(userId: string, dto: DeleteAccountDto): Promise<{
+        deleted: boolean;
     }>;
     updateSettings(userId: string, dto: UpdateSettingsDto): Promise<{
         id: string;

@@ -75,6 +75,15 @@ export class QuizService {
     };
   }
 
+  async latest(userId: string) {
+    const latest = await this.prisma.quizResult.findFirst({
+      where: { userId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { id: true },
+    });
+    return { quiz: latest ? await this.get(userId, latest.id) : null };
+  }
+
   /** Resume: returns questions (answers hidden until completed) + saved progress. */
   async get(userId: string, id: string) {
     const quiz = await this.findOwned(userId, id);
@@ -108,10 +117,13 @@ export class QuizService {
     questions.forEach((q, i) => {
       if (dto.answers[i] !== undefined) q.userAnswer = dto.answers[i];
     });
-    await this.prisma.quizResult.update({
-      where: { id },
+    const saved = await this.prisma.quizResult.updateMany({
+      where: { id, userId, status: QuizStatus.IN_PROGRESS },
       data: { questions: questions as unknown as Prisma.InputJsonValue },
     });
+    if (saved.count !== 1) {
+      throw new BadRequestException('Quiz already submitted');
+    }
     return { saved: true };
   }
 
@@ -138,8 +150,8 @@ export class QuizService {
       };
     });
 
-    await this.prisma.quizResult.update({
-      where: { id: quiz.id },
+    const submitted = await this.prisma.quizResult.updateMany({
+      where: { id: quiz.id, userId, status: QuizStatus.IN_PROGRESS },
       data: {
         score,
         status: QuizStatus.COMPLETED,
@@ -147,6 +159,9 @@ export class QuizService {
         questions: questions as unknown as Prisma.InputJsonValue,
       },
     });
+    if (submitted.count !== 1) {
+      throw new BadRequestException('Quiz already submitted');
+    }
 
     return { quizId: quiz.id, score, total: quiz.total, results };
   }

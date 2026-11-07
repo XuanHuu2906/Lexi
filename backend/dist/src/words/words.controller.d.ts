@@ -112,13 +112,6 @@ export declare class WordsController {
         limit: number;
     }>;
     getOne(userId: string, id: string): Promise<{
-        reviewLogs: {
-            id: string;
-            userId: string;
-            wordId: string;
-            quality: number;
-            reviewedAt: Date;
-        }[];
         srsData: {
             id: string;
             wordId: string;
@@ -129,6 +122,13 @@ export declare class WordsController {
             lastReviewedAt: Date | null;
             nextReviewAt: Date;
         } | null;
+        reviewLogs: {
+            id: string;
+            userId: string;
+            wordId: string;
+            quality: number;
+            reviewedAt: Date;
+        }[];
     } & {
         id: string;
         createdAt: Date;

@@ -26,8 +26,8 @@ let PrismaService = PrismaService_1 = class PrismaService extends client_1.Prism
             await this.$connect();
             this.logger.log('Connected to database');
         }
-        catch (err) {
-            this.logger.warn(`Could not connect to database on startup: ${err instanceof Error ? err.message : String(err)}`);
+        catch {
+            this.logger.warn('Could not connect to database on startup');
         }
     }
     async onModuleDestroy() {

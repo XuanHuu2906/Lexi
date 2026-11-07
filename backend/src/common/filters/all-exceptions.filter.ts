@@ -55,14 +55,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     if (status >= 500) {
-      if (isAuth) {
-        // ORM/transport errors can include credential-bearing inputs in stacks.
-        this.logger.error(`Authentication request failed (${status})`);
-      } else
-        this.logger.error(
-          `${request.method} ${request.url}`,
-          exception instanceof Error ? exception.stack : String(exception),
-        );
+      // Provider/ORM stacks, query strings and URL segments may contain private
+      // prompts, credentials or identifiers. Log only the operation and status.
+      this.logger.error(
+        `${isAuth ? 'Authentication' : request.method} request failed (${status})`,
+      );
     }
 
     const body: ErrorBody = {
@@ -70,7 +67,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       message,
       error,
-      path: isAuth ? pathWithoutQuery : request.url,
+      path: pathWithoutQuery,
       timestamp: new Date().toISOString(),
     };
 

@@ -16,6 +16,7 @@ export interface BatchLookupItem {
 export declare class WordsService {
     private readonly prisma;
     private readonly ai;
+    private readonly logger;
     constructor(prisma: PrismaService, ai: AiService);
     lookup(dto: LookupDto): Promise<DictionaryResult>;
     lookupBatch(dto: LookupBatchDto): Promise<{
@@ -49,6 +50,10 @@ export declare class WordsService {
         note: string | null;
         status: import("../../generated/prisma/enums").WordStatus;
         quizzedInCycle: boolean;
+    }>;
+    private missingDetails;
+    enrichMissing(userId: string, id: string): Promise<{
+        updated: boolean;
     }>;
     quickAdd(userId: string, dto: QuickAddDto): Promise<{
         word: {
@@ -122,13 +127,6 @@ export declare class WordsService {
         limit: number;
     }>;
     getOne(userId: string, id: string): Promise<{
-        reviewLogs: {
-            id: string;
-            userId: string;
-            wordId: string;
-            quality: number;
-            reviewedAt: Date;
-        }[];
         srsData: {
             id: string;
             wordId: string;
@@ -139,6 +137,13 @@ export declare class WordsService {
             lastReviewedAt: Date | null;
             nextReviewAt: Date;
         } | null;
+        reviewLogs: {
+            id: string;
+            userId: string;
+            wordId: string;
+            quality: number;
+            reviewedAt: Date;
+        }[];
     } & {
         id: string;
         createdAt: Date;

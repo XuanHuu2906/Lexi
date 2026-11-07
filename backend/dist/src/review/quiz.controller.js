@@ -30,6 +30,9 @@ let QuizController = class QuizController {
     submit(userId, dto) {
         return this.quizService.submit(userId, dto);
     }
+    latest(userId) {
+        return this.quizService.latest(userId);
+    }
     get(userId, id) {
         return this.quizService.get(userId, id);
     }
@@ -57,6 +60,14 @@ __decorate([
     __metadata("design:paramtypes", [String, quiz_dto_1.SubmitQuizDto]),
     __metadata("design:returntype", void 0)
 ], QuizController.prototype, "submit", null);
+__decorate([
+    (0, common_1.Get)('latest'),
+    (0, swagger_1.ApiOperation)({ summary: 'Find the latest quiz for this account across devices' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)('userId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], QuizController.prototype, "latest", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, swagger_1.ApiOperation)({ summary: 'Resume a quiz (answers hidden until submitted)' }),

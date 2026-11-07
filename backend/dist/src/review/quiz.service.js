@@ -55,6 +55,14 @@ let QuizService = class QuizService {
             questions: this.clientQuestions(questions),
         };
     }
+    async latest(userId) {
+        const latest = await this.prisma.quizResult.findFirst({
+            where: { userId },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            select: { id: true },
+        });
+        return { quiz: latest ? await this.get(userId, latest.id) : null };
+    }
     async get(userId, id) {
         const quiz = await this.findOwned(userId, id);
         const questions = this.stored(quiz.questions);
@@ -86,10 +94,13 @@ let QuizService = class QuizService {
             if (dto.answers[i] !== undefined)
                 q.userAnswer = dto.answers[i];
         });
-        await this.prisma.quizResult.update({
-            where: { id },
+        const saved = await this.prisma.quizResult.updateMany({
+            where: { id, userId, status: client_1.QuizStatus.IN_PROGRESS },
             data: { questions: questions },
         });
+        if (saved.count !== 1) {
+            throw new common_1.BadRequestException('Quiz already submitted');
+        }
         return { saved: true };
     }
     async submit(userId, dto) {
@@ -113,8 +124,8 @@ let QuizService = class QuizService {
                 explanation: q.explanation,
             };
         });
-        await this.prisma.quizResult.update({
-            where: { id: quiz.id },
+        const submitted = await this.prisma.quizResult.updateMany({
+            where: { id: quiz.id, userId, status: client_1.QuizStatus.IN_PROGRESS },
             data: {
                 score,
                 status: client_1.QuizStatus.COMPLETED,
@@ -122,6 +133,9 @@ let QuizService = class QuizService {
                 questions: questions,
             },
         });
+        if (submitted.count !== 1) {
+            throw new common_1.BadRequestException('Quiz already submitted');
+        }
         return { quizId: quiz.id, score, total: quiz.total, results };
     }
     async findOwned(userId, id) {

@@ -4,6 +4,7 @@ const { createServer } = require('node:http');
 const { resolve } = require('node:path');
 const { createRequire } = require('node:module');
 const { randomUUID } = require('node:crypto');
+const { mkdirSync, writeFileSync } = require('node:fs');
 const frontend = resolve(__dirname, '../../frontend');
 const requireFrontend = createRequire(resolve(frontend, 'package.json'));
 const next = requireFrontend('next');
@@ -19,11 +20,26 @@ async function main() {
   }
   // Read frontend/next.config.ts, including its actual /api/* rewrites.
   const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, frontend);
+  // Next's custom dev server reloads config and ignores conf.distDir in
+  // prepare(). Give it a separate project, using the real evaluated rewrites.
+  const fixture = resolve(frontend, '.next', `auth-test-${randomUUID()}`);
+  mkdirSync(resolve(fixture, 'pages'), { recursive: true });
+  writeFileSync(
+    resolve(fixture, 'pages/index.js'),
+    'export default function Page() { return null; }\n',
+  );
+  const rewrites = await config.rewrites();
+  writeFileSync(
+    resolve(fixture, 'next.config.js'),
+    `module.exports = { rewrites: async () => (${JSON.stringify(rewrites)}) };\n`,
+  );
   const app = next({
     dev: true,
-    dir: frontend,
+    // Release checkouts may share dependencies through a Windows junction.
+    // Webpack supports that layout; Turbopack rejects targets outside its root.
+    webpack: true,
+    dir: fixture,
     quiet: true,
-    conf: { ...config, distDir: `.next/auth-test-${randomUUID()}` },
   });
   await app.prepare();
   const handler = app.getRequestHandler();
