@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var confirmingLogout = false
     @State private var confirmingReload = false
     @State private var confirmingDiscard = false
+    @State private var deletingAccount = false
     @State private var attempt = 0
     @AppStorage(SpeechPreferences.speedKey) private var speechSpeed = 0.85
     @Environment(\.scenePhase) private var scenePhase
@@ -110,13 +111,17 @@ struct SettingsView: View {
                     .font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
             }
             Section("Quyền riêng tư") {
+                NavigationLink("Dữ liệu và quyền xử lý AI") { PrivacyDetailsView(preferences: session.privacy) }
                 Text("Sổ từ và cài đặt được lưu trên tài khoản Lexi, dùng chung với web. Nội dung tra cứu được gửi tới máy chủ để AI xử lý.")
                 Text("Mật khẩu không được lưu trên thiết bị. Đăng xuất xóa phiên đã lưu trên iPhone này.")
                 NavigationLink(value: AppRoute.about) { Label("Về Lexi", systemImage: "info.circle") }
             }
             LexiButton(title: "Đăng xuất", variant: .destructive, isLoading: session.busy) { confirmingLogout = true }
+            Button("Xóa tài khoản vĩnh viễn", role: .destructive) { deletingAccount = true }
+                .disabled(session.busy || session.offlineSession)
         }
         .lexiFormStyle()
+        .sheet(isPresented: $deletingAccount) { DeleteAccountView(session: session) }
         .task(id: attempt) {
             await model.load()
             if session.navigation.ownerID == userID && model.loaded && !model.dirty {

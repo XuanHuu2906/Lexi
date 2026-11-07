@@ -97,7 +97,8 @@ struct NotebookFlashcards: FlashcardServing {
             if let range = cloze?.range(of: word.word, options: .caseInsensitive) { cloze?.replaceSubrange(range, with: "_____") }
             return FlashcardSet.Card(wordId: word.id, term: word.word, meaning: word.meaning,
                                      phonetic: word.phonetic, examples: word.examples, options: options,
-                                     answerIndex: options?.firstIndex(of: word.meaning), cloze: mode == .fill ? cloze : nil)
+                                     answerIndex: options?.firstIndex(of: word.meaning), cloze: mode == .fill ? cloze : nil,
+                                     synonyms: word.synonyms, antonyms: word.antonyms)
         }
         return FlashcardSet(mode: mode, scope: servedScope, count: cards.count,
                             cards: cards, offline: offline)

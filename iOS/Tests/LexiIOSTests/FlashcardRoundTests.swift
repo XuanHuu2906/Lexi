@@ -5,7 +5,7 @@ import Testing
 private func notebookWords(_ count: Int) -> [Word] {
     (0..<count).map { n in
         Word(id: "word-\(n)", word: "term\(n)", meaning: "meaning\(n)", phonetic: nil, pos: nil,
-             status: .new, topic: nil, examples: ["I know TERM\(n)."], synonyms: [], antonyms: [], note: nil,
+             status: .new, topic: nil, examples: ["I know TERM\(n)."], synonyms: ["similar\(n)"], antonyms: ["opposite\(n)"], note: nil,
              createdAt: "2026-10-19T01:00:00Z", nextReviewAt: "2026-10-18T01:00:00Z")
     }
 }
@@ -29,6 +29,69 @@ private actor NotebookStub: FlashcardWordListing {
 
 @Suite @MainActor
 struct FlashcardRoundTests {
+    @Test(arguments: FlashcardMode.allCases)
+    func interruptedSessionRestoresExactDeckAndAnswerState(_ mode: FlashcardMode) async throws {
+        let name = "flashcard-resume-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let words = NotebookStub(count: 23)
+        let api = NotebookFlashcards(words: words)
+        let store = StudyCheckpointStore(defaults: defaults, namespace: "api|a")
+        let first = FlashcardsViewModel(api: api, store: store)
+        await first.load(mode: mode)
+        if mode == .match {
+            let cards = try #require(first.deck).cards
+            first.selectTerm(cards[0].wordId); first.selectMeaning(cards[0].wordId)
+            first.selectTerm(cards[1].wordId)
+        } else {
+            first.reveal(); first.next()
+            first.typedAnswer = "unfinished answer"
+            if mode != .fill { first.choose(try #require(first.current?.answerIndex)) }
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        let deck = try encoder.encode(try #require(first.deck))
+        let order = first.meanings.map(\.wordId)
+        let index = first.index
+        let revealed = first.revealed
+        let correctCount = first.correctCount
+        let selectedTerm = first.selectedTerm
+        let reads = await words.pages.count
+        // Repeated view/foreground tasks must not fetch or reset progress.
+        await first.resume(); await first.resume()
+        #expect(first.index == index && first.revealed == revealed)
+        #expect(await words.pages.count == reads)
+        first.deactivate(); store.close(clear: false)
+        let reopened = FlashcardsViewModel(api: api,
+            store: StudyCheckpointStore(defaults: defaults, namespace: "api|a"))
+        await reopened.resume(offlineOnly: true)
+        #expect(try encoder.encode(try #require(reopened.deck)) == deck)
+        #expect(reopened.mode == mode && reopened.index == index)
+        #expect(reopened.revealed == revealed && reopened.correctCount == correctCount)
+        #expect(reopened.meanings.map(\.wordId) == order && reopened.selectedTerm == selectedTerm)
+        if mode == .match { #expect(reopened.matched.count == 1 && reopened.matchedMeanings.count == 1) }
+        else { #expect(reopened.typedAnswer == "unfinished answer") }
+        #expect(await words.pages.count == reads)
+        let other = FlashcardsViewModel(api: api,
+            store: StudyCheckpointStore(defaults: defaults, namespace: "api|b"))
+        #expect(other.deck == nil)
+        let cleanup = StudyCheckpointStore(defaults: defaults, namespace: "api|a")
+        cleanup.close(clear: true)
+        #expect(StudyCheckpointStore(defaults: defaults, namespace: "api|a").value.flashcard == nil)
+    }
+
+    @Test func cancelledInitialLoadCanResumeInsteadOfLeavingBlankScreen() async {
+        let model = FlashcardsViewModel(api: NotebookFlashcards(words: NotebookStub(count: 23)))
+        let work = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            await model.resume()
+        }
+        await work.value
+        #expect(!model.loading && model.feedback != nil)
+        await model.resume()
+        #expect(model.deck?.count == 10 && model.feedback == nil)
+    }
+
     private func finish(_ model: FlashcardsViewModel) throws -> Set<String> {
         let deck = try #require(model.deck)
         if model.mode == .match {
@@ -108,6 +171,7 @@ struct FlashcardRoundTests {
             let deck = NotebookFlashcards.makeDeck(words: notebookWords(13), mode: mode, scope: .due,
                                                    limit: 10, excluding: [])
             for card in deck.cards {
+                #expect(card.synonyms?.count == 1 && card.antonyms?.count == 1)
                 if mode == .guess || mode == .listen {
                     #expect(card.options?[try! #require(card.answerIndex)] == card.meaning)
                     #expect(Set(card.options ?? []).count == 4)

@@ -94,6 +94,7 @@ struct WordInputDTO: Codable, Sendable, Equatable {
     let examples: [String]?
     let synonyms: [String]?
     let antonyms: [String]?
+    var enrich: Bool? = nil
 
     func toInput() -> WordInput {
         WordInput(word: term, meaning: meaning, phonetic: phonetic, pos: partOfSpeech,

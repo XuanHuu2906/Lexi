@@ -48,6 +48,8 @@ struct ReviewView: View {
                         ForEach(Array(word.examples.enumerated()), id: \.offset) { _, example in
                             Text(example).font(LexiTypography.body).foregroundStyle(LexiColors.textSecondary)
                         }
+                        WordTextSection(title: "Đồng nghĩa", values: word.synonyms)
+                        WordTextSection(title: "Trái nghĩa", values: word.antonyms)
                     } else {
                         LexiButton(title: "Hiện đáp án", isDisabled: model.uncertain) { model.reveal() }
                     }
@@ -95,17 +97,21 @@ struct FlashcardsView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dismiss) private var dismiss
     @State private var speech = StudySpeech()
-    @State private var mode: FlashcardMode = .guess
-    @State private var scope: FlashcardScope = .due
-    @State private var attempt = 0
+    private var mode: FlashcardMode { model.mode }
+    private var scope: FlashcardScope { model.requestedScope }
+
+    private func reload(mode: FlashcardMode? = nil, scope: FlashcardScope? = nil) {
+        speech.stop()
+        Task { await model.load(mode: mode, scope: scope, offlineOnly: offlineOnly) }
+    }
 
     var body: some View {
         LexiPage {
             LexiCard {
-                Picker("Cách luyện", selection: $mode) {
+                Picker("Cách luyện", selection: Binding(get: { mode }, set: { reload(mode: $0) })) {
                     ForEach(FlashcardMode.allCases, id: \.self) { Text($0.title).tag($0) }
                 }.pickerStyle(.menu).frame(minHeight: LexiSpacing.minHitTarget)
-                Picker("Bộ từ", selection: $scope) {
+                Picker("Bộ từ", selection: Binding(get: { scope }, set: { reload(scope: $0) })) {
                     ForEach(FlashcardScope.allCases, id: \.self) { Text($0.title).tag($0) }
                 }.pickerStyle(.menu).frame(minHeight: LexiSpacing.minHitTarget)
                 Text("Luyện tự do không thay đổi lịch ôn. Dùng mục Ôn tập để lưu đánh giá.")
@@ -113,7 +119,7 @@ struct FlashcardsView: View {
                 Text("Mỗi lượt tối đa 10 thẻ. Từ đã hoàn thành sẽ dành cho vòng ôn tiếp theo.")
                     .font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
             }
-            if let feedback = model.feedback { FeatureErrorView(feedback: feedback) { attempt += 1 } }
+            if let feedback = model.feedback { FeatureErrorView(feedback: feedback) { reload() } }
             if model.loading { LoadingState(title: "Đang chuẩn bị thẻ…") }
             else if let deck = model.deck {
                 if deck.offline {
@@ -132,7 +138,7 @@ struct FlashcardsView: View {
                         if model.roundFinished {
                             LexiButton(title: "Bắt đầu vòng mới") { Task { await model.load(restartRound: true, offlineOnly: offlineOnly) } }
                         } else {
-                            LexiButton(title: deck.cards.isEmpty ? "Tải lại sổ từ" : "Luyện thẻ mới") { attempt += 1 }
+                            LexiButton(title: deck.cards.isEmpty ? "Tải lại sổ từ" : "Luyện thẻ mới") { reload() }
                         }
                         LexiButton(title: "Về Ôn tập", variant: .secondary) { dismiss() }
                     }
@@ -141,11 +147,14 @@ struct FlashcardsView: View {
             }
         }
         .navigationTitle("Thẻ ghi nhớ")
-        .task(id: "\(mode.rawValue)-\(scope.rawValue)-\(attempt)") {
-            speech.stop(); await model.load(mode: mode, scope: scope, offlineOnly: offlineOnly)
+        .task {
+            await model.resume(offlineOnly: offlineOnly)
         }
         .onDisappear { speech.stop() }
-        .onChange(of: scenePhase) { _, phase in if phase != .active { speech.stop() } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { speech.stop() }
+            else { Task { await model.resume(offlineOnly: offlineOnly) } }
+        }
     }
 
     @ViewBuilder private func single(_ card: FlashcardSet.Card, total: Int) -> some View {
@@ -165,6 +174,8 @@ struct FlashcardsView: View {
                 Divider()
                 Text(card.meaning).font(LexiTypography.cardTitle)
                 ForEach(Array(card.examples.enumerated()), id: \.offset) { _, example in Text(example) }
+                WordTextSection(title: "Đồng nghĩa", values: card.synonyms ?? [])
+                WordTextSection(title: "Trái nghĩa", values: card.antonyms ?? [])
                 if let correct = model.correct {
                     FeedbackNotice(message: correct ? "Đúng rồi!" : "Chưa đúng. Xem lại đáp án và thử ở lượt sau.",
                                    symbol: correct ? "checkmark.circle.fill" : "arrow.counterclockwise", isSuccess: correct)

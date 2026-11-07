@@ -297,6 +297,7 @@ struct WordTextSection: View {
 }
 
 struct AddWordSheet: View {
+    let privacy: PrivacyPreferences?
     @State private var editor: WordEditorModel
     @State private var input: WordInput
     @State private var synonyms: String
@@ -306,6 +307,7 @@ struct AddWordSheet: View {
     let changed: () -> Void
 
     init(api: WordsAPI, input: WordInput = WordInput(word: "", meaning: ""), changed: @escaping () -> Void) {
+        self.privacy = api.client.privacy
         _editor = State(initialValue: WordEditorModel(api: api)); _input = State(initialValue: input); self.changed = changed
         _synonyms = State(initialValue: input.synonyms?.joined(separator: ", ") ?? "")
         _antonyms = State(initialValue: input.antonyms?.joined(separator: ", ") ?? "")
@@ -327,6 +329,14 @@ struct AddWordSheet: View {
                     TextField("Ví dụ (mỗi dòng một câu)", text: lines(\.examples), axis: .vertical).accessibilityLabel("Ví dụ, mỗi dòng một câu")
                     TextField("Đồng nghĩa (cách bằng dấu phẩy)", text: $synonyms).accessibilityLabel("Từ đồng nghĩa")
                     TextField("Trái nghĩa (cách bằng dấu phẩy)", text: $antonyms).accessibilityLabel("Từ trái nghĩa")
+                }
+                if let privacy {
+                    Section("Bổ sung bằng AI") {
+                        Text(privacy.canEnrichWords
+                             ? "Lexi sẽ bổ sung ví dụ, đồng nghĩa và trái nghĩa còn thiếu khi có nội dung phù hợp."
+                             : "Từ sẽ được lưu theo nội dung bạn nhập. Cho phép xử lý AI để tự bổ sung chi tiết còn thiếu.")
+                        NavigationLink("Quyền xử lý AI") { PrivacyDetailsView(preferences: privacy) }
+                    }
                 }
                 if let feedback = editor.feedback { FeatureErrorView(feedback: feedback) }
                 TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -368,6 +378,8 @@ struct AddWordSheet: View {
 }
 
 struct QuickAddView: View {
+    let privacy: PrivacyPreferences?
+    @State private var showingConsent = false
     @State private var editor: WordEditorModel
     @State private var text = ""
     @State private var topic = ""
@@ -375,6 +387,7 @@ struct QuickAddView: View {
     @Environment(\.dismiss) private var dismiss
     let changed: () -> Void
     init(api: WordsAPI, changed: @escaping () -> Void) {
+        self.privacy = api.client.privacy
         _editor = State(initialValue: WordEditorModel(api: api)); self.changed = changed
     }
     var body: some View {
@@ -406,7 +419,11 @@ struct QuickAddView: View {
                     TimelineView(.periodic(from: .now, by: 1)) { context in
                         LexiButton(title: "Thêm từ và tạo gợi ý", isLoading: editor.busy,
                                    isDisabled: editor.feedback?.canRetry(at: context.date) == false) {
-                            Task { _ = await editor.quickAdd(text: text, topic: topic); changed() }
+                            if let privacy, privacy.aiEnabled && !privacy.textAllowed {
+                                showingConsent = true
+                            } else {
+                                Task { _ = await editor.quickAdd(text: text, topic: topic); changed() }
+                            }
                         }
                     }
                 }
@@ -421,6 +438,9 @@ struct QuickAddView: View {
                     Button("Tiếp tục chỉnh sửa", role: .cancel) {}
                 }
         }.interactiveDismissDisabled(editor.busy || hasDraft)
+            .sheet(isPresented: $showingConsent) {
+                if let privacy { ExternalProcessingConsentView(preferences: privacy, use: .textAI) }
+            }
     }
     private var hasDraft: Bool { editor.quickResult == nil && (!text.isEmpty || !topic.isEmpty) }
 }

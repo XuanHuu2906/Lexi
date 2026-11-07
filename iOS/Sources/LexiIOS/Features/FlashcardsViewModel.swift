@@ -18,7 +18,7 @@ final class FlashcardsViewModel {
     private(set) var matchedMeanings = Set<String>()
     private(set) var selectedTerm: String?
     private(set) var meanings: [FlashcardSet.Card] = []
-    var typedAnswer = ""
+    var typedAnswer = "" { didSet { saveSession() } }
     private let api: any FlashcardServing
     private let cache: OfflineNotebookCache?
     private let store: StudyCheckpointStore
@@ -41,12 +41,31 @@ final class FlashcardsViewModel {
         for scope in FlashcardScope.allCases {
             completedWords[scope] = Set(store.value.completedFlashcards?[scope.rawValue] ?? [])
         }
+        if let draft = store.value.flashcard,
+           draft.deck.count == draft.deck.cards.count,
+           (0...draft.deck.count).contains(draft.index),
+           draft.deck.count <= 10 {
+            mode = draft.deck.mode; requestedScope = draft.scope
+            deck = draft.deck; index = draft.index; revealed = draft.revealed
+            correct = draft.correct; correctCount = draft.correctCount
+            matched = draft.matched; matchedMeanings = draft.matchedMeanings
+            selectedTerm = draft.selectedTerm; meanings = draft.meanings
+            typedAnswer = draft.typedAnswer
+        }
+    }
+
+    /// SwiftUI may restart a view task after an interruption. Only explicit
+    /// mode/scope changes or "new cards" should replace an existing deck.
+    func resume(offlineOnly: Bool = false) async {
+        guard active, deck == nil, !loading else { return }
+        await load(offlineOnly: offlineOnly)
     }
 
     func load(mode: FlashcardMode? = nil, scope: FlashcardScope? = nil,
               restartRound: Bool = false, offlineOnly: Bool = false) async {
         guard active, feedback?.canRetry() != false else { return }
         if let mode { self.mode = mode }; if let scope { requestedScope = scope }
+        store.update { $0.flashcard = nil }
         if restartRound { completedWords[requestedScope] = []; saveRound() }
         let id = UUID(); operation = id
         let requestedMode = self.mode
@@ -81,8 +100,13 @@ final class FlashcardsViewModel {
                       return true
                   }) else { throw HTTPError.invalidResponse }
             deck = response; meanings = response.cards.shuffled()
+            saveSession()
         } catch {
-            guard operation == id, !isCancellation(error) else { return }
+            guard operation == id else { return }
+            if isCancellation(error) {
+                feedback = FeatureFeedback(message: "Lượt tải thẻ bị gián đoạn. Bấm Thử lại để tiếp tục.")
+                return
+            }
             if error is OfflineDeckFailure {
                 feedback = FeatureFeedback(message: "Chưa có Flashcards đã lưu trên thiết bị. Hãy kết nối mạng và lưu sổ từ trước.")
             } else if case .validation = error as? HTTPError {
@@ -92,7 +116,7 @@ final class FlashcardsViewModel {
     }
 
     func deactivate() { active = false; operation = UUID(); completedWords = [:] }
-    func reveal() { guard active, current != nil else { return }; revealed = true }
+    func reveal() { guard active, current != nil else { return }; revealed = true; saveSession() }
     func choose(_ option: Int) {
         guard active, !revealed, let card = current, let options = card.options, options.indices.contains(option) else { return }
         finish(correct: option == card.answerIndex)
@@ -104,15 +128,18 @@ final class FlashcardsViewModel {
     private func finish(correct: Bool) {
         self.correct = correct; revealed = true
         if correct { correctCount += 1 }
+        saveSession()
     }
     func next() {
         guard active, revealed, current != nil else { return }
         index += 1; resetCard()
         rememberCompletedDeck()
+        saveSession()
     }
     func selectTerm(_ id: String) {
         guard active, !matched.contains(id), deck?.cards.contains(where: { $0.wordId == id }) == true else { return }
         selectedTerm = id; correct = nil
+        saveSession()
     }
     func selectMeaning(_ id: String) {
         guard active, let selectedTerm, !matchedMeanings.contains(id),
@@ -125,6 +152,16 @@ final class FlashcardsViewModel {
             self.selectedTerm = nil; correctCount += 1
             rememberCompletedDeck()
         }
+        saveSession()
+    }
+    private func saveSession() {
+        guard active, let deck else { return }
+        let draft = StudyCheckpointStore.FlashcardDraft(
+            deck: deck, scope: requestedScope, index: index, revealed: revealed,
+            correct: correct, correctCount: correctCount, matched: matched,
+            matchedMeanings: matchedMeanings, selectedTerm: selectedTerm,
+            meanings: meanings, typedAnswer: typedAnswer)
+        store.update { $0.flashcard = draft }
     }
     private func rememberCompletedDeck() {
         guard completed, let deck else { return }

@@ -1041,43 +1041,45 @@ Swift: `Color(red: 108.0/255, green: 75.0/255, blue: 245.0/255)` hoặc color as
 ---
 # PHASE 11 — QA, SECURITY HARDENING, PRIVACY, ACCESSIBILITY
 
+> Cập nhật 20/10/2026: xem [trạng thái từng task](ios-phase11-status.md) và [bằng chứng](evidence/phase11-verification-2026-10-20.md). Các ô đạt code/test không thay nghiệm thu thiết bị; G5-RC vẫn mở.
+
 **Mục tiêu:** biến prototype thành build có thể đưa cho người dùng, đáp ứng các yêu cầu bảo mật và App Review hiện hành. Phase này có hạng mục **bắt buộc trước MVP TestFlight**, kể cả khi chưa có Phase 8–10.
 
 ## 11.A. Security/privacy
 
-- [ ] **IOS-1101** Threat-model cuối: auth/token theft, deep-link hijacking, request replay, IDOR, unsafe AI prompt/logging, local cache data isolation.
+- [x] **IOS-1101** Threat-model cuối: auth/token theft, deep-link hijacking, request replay, IDOR, unsafe AI prompt/logging, local cache data isolation.
 - [ ] **IOS-1102** Kiểm tra HTTPS/TLS và ATS; không cho phép arbitrary HTTP exception production.
 - [ ] **IOS-1103** Test Apple Keychain persistent/reinstall/backup/accessibility policy và logout token cleanup.
-- [ ] **IOS-1104** Kiểm tra logout + account switch không hiển thị personal word data của account trước qua stale cache.
+- [x] **IOS-1104** Kiểm tra logout + account switch không hiển thị personal word data của account trước qua stale cache.
 - [ ] **IOS-1105** Kiểm tra không có `.p8`, `.p12`, passwords, `.mobileprovision` private, OpenAI/Azure keys, staging database URLs/creds trong repo/build logs/binary.
-- [ ] **IOS-1106** Backend rate limits, CSRF cookies regressions, Brute-force/lockout, rotate/reuse-detection tested.
-- [ ] **IOS-1107** Test account deletion: nếu cho phép tạo tài khoản trong app, chuẩn bị chức năng xóa tài khoản **trong app** theo App Store guideline, không chỉ đăng xuất hay vô hiệu hóa app.
+- [x] **IOS-1106** Backend rate limits, CSRF cookies regressions, Brute-force/lockout, rotate/reuse-detection tested.
+- [x] **IOS-1107** Test account deletion: nếu cho phép tạo tài khoản trong app, chuẩn bị chức năng xóa tài khoản **trong app** theo App Store guideline, không chỉ đăng xuất hay vô hiệu hóa app.
 - [ ] **IOS-1108** Xây UX Delete Account: xác nhận có chủ đích, revoke sessions, chính sách xóa/pseudonymization dữ liệu server, lưu trữ luật định, support flow; xác minh server behavior bằng e2e.
 - [ ] **IOS-1109** Privacy Policy công khai: email, progress học, AI text/audio, analytics, notifications, data retention, request deletion.
 - [ ] **IOS-1110** Điền Apple App Privacy labels dựa trên dữ liệu SDK/backend **thực tế**; không đánh dấu “No Data Collected” nếu app thu email, voice, analytics etc.
-- [ ] **IOS-1111** Rà soát App Tracking Transparency: chỉ xin ATT nếu tracking thật sự thuộc phạm vi Apple yêu cầu; không thêm permission để trang trí.
+- [x] **IOS-1111** Rà soát App Tracking Transparency: chỉ xin ATT nếu tracking thật sự thuộc phạm vi Apple yêu cầu; không thêm permission để trang trí.
 - [ ] **IOS-1112** Rà soát third-party AI content processing consent và moderation, nhất là hội thoại bài viết/giọng nói.
 - [ ] **IOS-1113** Crash logging redaction: không ghi access/refresh token, email đầy đủ, nội dung private prompts/audio.
-- [ ] **IOS-1114** App permissions (`NSMicrophoneUsageDescription`, notifications, optional speech): chỉ giữ quyền thực sự dùng, câu mô tả rõ ràng.
-- [ ] **IOS-1115** Nếu có sign-in bên thứ ba trong tương lai: đánh giá guideline về Sign in with Apple và lựa chọn tương đương; không tự thêm Google login trước MVP.
+- [x] **IOS-1114** App permissions (`NSMicrophoneUsageDescription`, notifications, optional speech): chỉ giữ quyền thực sự dùng, câu mô tả rõ ràng.
+- [x] **IOS-1115** Nếu có sign-in bên thứ ba trong tương lai: đánh giá guideline về Sign in with Apple và lựa chọn tương đương; không tự thêm Google login trước MVP.
 
 ## 11.B. Quality attributes và test
 
 - [ ] **IOS-1116** Mỗi feature có loading/empty/error/offline/permission denied/401/429 states.
-- [ ] **IOS-1117** Swift unit tests cho DTOs, mappers, SessionActor, parser, ViewModel state transitions.
+- [x] **IOS-1117** Swift unit tests cho DTOs, mappers, SessionActor, parser, ViewModel state transitions.
 - [ ] **IOS-1118** Backend integration tests native auth/web auth matrix, CRUD, review mutation, account deletion.
 - [ ] **IOS-1119** Kiểm thử manual mỗi flow chính trên ít nhất hai kích cỡ iPhone/iOS versions khả dụng; nếu chỉ có một iPhone, bổ sung macOS CI simulator evidence khi có.
 - [ ] **IOS-1120** Kiểm thử foreground/background/killed state, airplane mode, network switching (Wi-Fi↔cellular), low power mode.
 - [ ] **IOS-1121** Kiểm thử permission microphone/notifications: deny→retry→settings→allow; app state phải cập nhật đúng.
 - [ ] **IOS-1122** Accessibility: VoiceOver, Dynamic Type ở accessibility sizes, hit area, contrast, Reduce Motion, Voice Control khi áp dụng.
 - [ ] **IOS-1123** Internationalization: UI Vietnamese/English policy, locale-safe date/number, pluralization, time zone.
-- [ ] **IOS-1124** Kiểm tra SwiftUI main-thread updating đúng `@MainActor`; warnings/concurrency không được bỏ qua vì xtool build thành công.
+- [x] **IOS-1124** Kiểm tra SwiftUI main-thread updating đúng `@MainActor`; warnings/concurrency không được bỏ qua vì xtool build thành công.
 - [ ] **IOS-1125** Performance: cold start, tab switch, scroll 100+ rows, quiz interaction, text input latency; đo trên iPhone mục tiêu.
 - [ ] **IOS-1126** Memory/leaks khi mở/đóng Tutor/Voice/Recording nhiều lần; cleanup audio session/engine.
 - [ ] **IOS-1127** Battery/network usage: không refresh timer quá dày, không background loop.
 - [ ] **IOS-1128** Feature flags: có thể tắt audio/push/AI không ổn định trong release mà không phá core learning.
-- [ ] **IOS-1129** Version and build number được quản lý tách biệt; biến đổi build number mới khi upload.
-- [ ] **IOS-1130** README có cách reproduce build/debug và troubleshooting iPhone/device.
+- [x] **IOS-1129** Version and build number được quản lý tách biệt; biến đổi build number mới khi upload.
+- [x] **IOS-1130** README có cách reproduce build/debug và troubleshooting iPhone/device.
 - [ ] **IOS-1131** CI gates: unit tests, lint/format nếu đã cấu hình, secret scan, contract checks, build smoke và output artifact metadata.
 
 ## 11.C. Điều kiện Release Candidate

@@ -11,6 +11,12 @@ struct FeatureFeedback: Equatable {
 
     init(_ error: any Error, now: Date = Date(), mutation: Bool = false,
          context: FeatureErrorContext = .general) {
+        if let privacy = error as? PrivacyError {
+            message = privacy == .consentRequired
+                ? "Bạn cần cho phép xử lý dữ liệu bên ngoài trước khi dùng tính năng này. Sau khi chọn, hãy bấm gửi lại."
+                : "Tính năng AI hoặc chấm âm thanh đang tắt trong bản cài đặt này."
+            return
+        }
         // Pronunciation has no saved mutation to reconcile: an unknown upload result
         // must not tell learners to reload vocabulary data. Never display raw API or
         // provider messages (they may contain private text or diagnostics).

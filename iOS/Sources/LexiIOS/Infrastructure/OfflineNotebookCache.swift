@@ -52,6 +52,10 @@ actor OfflineNotebookCache {
         try data.write(to: file, options: [.atomic])
         #if os(iOS)
         try FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: file.path)
+        var excludedFile = file
+        var resourceValues = URLResourceValues()
+        resourceValues.isExcludedFromBackup = true
+        try excludedFile.setResourceValues(resourceValues)
         #endif
     }
 

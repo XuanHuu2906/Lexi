@@ -17,10 +17,23 @@ protocol QuizServing: Sendable {
 extension QuizAPI: QuizServing {}
 struct LatestQuiz: Decodable, Sendable { let quiz: QuizState? }
 
-// No credentials or vocabulary are stored here. Scope by API origin AND account.
+// No credentials are stored here. Scope by API origin AND account.
 // The review marker is written BEFORE POST so a process death cannot replay it.
 @MainActor
 final class StudyCheckpointStore {
+    struct FlashcardDraft: Codable {
+        var deck: FlashcardSet
+        var scope: FlashcardScope
+        var index: Int
+        var revealed: Bool
+        var correct: Bool?
+        var correctCount: Int
+        var matched: Set<String>
+        var matchedMeanings: Set<String>
+        var selectedTerm: String?
+        var meanings: [FlashcardSet.Card]
+        var typedAnswer: String
+    }
     struct QuizDraft: Codable {
         var id: String
         var answers: [Int]
@@ -33,6 +46,7 @@ final class StudyCheckpointStore {
         // Optional for compatibility with checkpoints written before Phase 7 recovery.
         var quizGenerationPending: Bool?
         var completedFlashcards: [String: [String]]?
+        var flashcard: FlashcardDraft?
     }
     private let defaults: UserDefaults?
     private let key: String

@@ -30,6 +30,10 @@ struct SessionRootView: View {
         }
         .accessibilityHidden(scenePhase != .active)
         .allowsHitTesting(scenePhase == .active)
+        .sheet(item: Binding(get: { container.privacy?.requested },
+                             set: { container.privacy?.requested = $0 })) { use in
+            if let privacy = container.privacy { ExternalProcessingConsentView(preferences: privacy, use: use) }
+        }
         .overlay {
             if scenePhase != .active {
                 ZStack {
