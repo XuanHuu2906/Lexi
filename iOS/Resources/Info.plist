@@ -4,7 +4,7 @@
 <dict>
     <key>CFBundleDisplayName</key><string>Lexi</string>
     <key>CFBundleShortVersionString</key><string>0.2.0</string>
-    <key>CFBundleVersion</key><string>1</string>
+    <key>CFBundleVersion</key><string>2</string>
     <key>LexiBuildFlavor</key><string>development</string>
     <key>LexiAPIBaseURL</key><string>https://lexi-backend-tf32.onrender.com</string>
     <key>UIUserInterfaceStyle</key><string>Light</string>

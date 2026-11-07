@@ -59,6 +59,8 @@ struct MainTabView: View {
             }
         }
         .privacySensitive()
+        .onChange(of: model.privacy?.textAllowed) { _, allowed in if allowed == false { ai.suspend() } }
+        .onChange(of: model.privacy?.speechAllowed) { _, allowed in if allowed == false { audio.suspend() } }
         .confirmationDialog("Đăng xuất và xóa dữ liệu offline trên thiết bị?", isPresented: $confirmingOfflineLogout,
                             titleVisibility: .visible) {
             Button("Đăng xuất", role: .destructive) { Task { await model.logout() } }
@@ -82,9 +84,13 @@ struct MainTabView: View {
                 Task { await offlineCache.close(clear: true) }
             }
             Task { await reminders.deactivate(userID: me.id) }
-            audio.deactivate()
-            if case .signedOut = model.state { study.deactivate(clear: true); ai.deactivate(clear: true) }
-            else { study.deactivate(clear: false); ai.deactivate(clear: false) }
+            // A presentation/lifecycle disappearance does not end the account
+            // session. The registered cleanup handles logout and invalidation.
+            audio.suspend()
+            ai.suspend()
+            if navigation.ownerID != me.id {
+                study.deactivate(clear: false); ai.deactivate(clear: false)
+            }
         }
         .onChange(of: scenePhase) { _, phase in if phase != .active { ai.suspend() } }
         .onChange(of: scenePhase) { _, phase in if phase == .background { audio.suspend() } }

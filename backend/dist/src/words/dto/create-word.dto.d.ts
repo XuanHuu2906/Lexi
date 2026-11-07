@@ -1,4 +1,5 @@
 export declare class CreateWordDto {
+    enrich?: boolean;
     term: string;
     meaning: string;
     phonetic?: string;

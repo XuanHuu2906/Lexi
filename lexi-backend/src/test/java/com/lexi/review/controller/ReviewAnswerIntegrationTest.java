@@ -1,4 +1,3 @@
-
 package com.lexi.review.controller;
 
 import com.lexi.config.PostgresTestConfig;
@@ -18,11 +17,13 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlConfig;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.*;
 
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -31,470 +32,550 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import(PostgresTestConfig.class)
-@Sql(
-    scripts = {
-        "/sql/user-repository-schema.sql",
-        "/sql/auth-refresh-tokens.sql"
-    },
-    executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
-    config = @SqlConfig(
-        transactionMode = SqlConfig.TransactionMode.ISOLATED
-    )
-)
+@Sql(scripts = {
+    "/sql/user-repository-schema.sql",
+    "/sql/auth-refresh-tokens.sql"
+}, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, config = @SqlConfig(transactionMode = SqlConfig.TransactionMode.ISOLATED))
 class ReviewAnswerIntegrationTest {
+  @Autowired
+  private PlatformTransactionManager transactionManager;
 
-    @Autowired
-    private MockMvc mockMvc;
+  @Autowired
+  private MockMvc mockMvc;
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+  @Autowired
+  private JdbcTemplate jdbcTemplate;
 
-    @Test
-    void shouldUpdateSrsStatusAndReviewLogTogether()
-        throws Exception {
+  @Test
+  void shouldUpdateSrsStatusAndReviewLogTogether()
+      throws Exception {
 
-        String email = "review-success@lexi.test";
-        Session session = register(email);
+    String email = "review-success@lexi.test";
+    Session session = register(email);
 
-        createWord(session, "resilient");
+    createWord(session, "resilient");
 
-        String wordId = findWordId(email, "resilient");
+    String wordId = findWordId(email, "resilient");
 
-        mockMvc.perform(
-            post("/review/answer")
-                .cookie(authCookies(session))
-                .header(
-                    "X-CSRF-Token",
-                    session.csrfToken()
-                )
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "wordId": "%s",
-                      "rating": "good"
-                    }
-                    """.formatted(wordId))
-        )
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(
-                jsonPath("$.data.status").value("LEARNING")
-            )
-            .andExpect(
-                jsonPath("$.data.srsData.interval").value(1)
-            )
-            .andExpect(
-                jsonPath("$.data.srsData.repetitions").value(1)
-            )
-            .andExpect(
-                jsonPath("$.data.srsData.easeFactor").value(2.5)
-            )
-            .andExpect(
-                jsonPath("$.data.srsData.lastQuality").value(4)
-            )
-            .andExpect(
-                jsonPath("$.data.nextReviewAt").isNotEmpty()
-            );
+    mockMvc.perform(
+        post("/review/answer")
+            .cookie(authCookies(session))
+            .header(
+                "X-CSRF-Token",
+                session.csrfToken())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "wordId": "%s",
+                  "rating": "good"
+                }
+                """.formatted(wordId)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(
+            jsonPath("$.data.status").value("LEARNING"))
+        .andExpect(
+            jsonPath("$.data.srsData.interval").value(1))
+        .andExpect(
+            jsonPath("$.data.srsData.repetitions").value(1))
+        .andExpect(
+            jsonPath("$.data.srsData.easeFactor").value(2.5))
+        .andExpect(
+            jsonPath("$.data.srsData.lastQuality").value(4))
+        .andExpect(
+            jsonPath("$.data.nextReviewAt").isNotEmpty());
 
-        String status = jdbcTemplate.queryForObject(
-            """
+    String status = jdbcTemplate.queryForObject(
+        """
             SELECT status::text
             FROM words WHERE id = ?
             """,
-            String.class,
-            wordId
-        );
+        String.class,
+        wordId);
 
-        Integer repetitions = jdbcTemplate.queryForObject(
-            """
+    Integer repetitions = jdbcTemplate.queryForObject(
+        """
             SELECT repetitions
             FROM srs_data WHERE "wordId" = ?
             """,
-            Integer.class,
-            wordId
-        );
+        Integer.class,
+        wordId);
 
-        Integer logCount = jdbcTemplate.queryForObject(
-            """
+    Integer logCount = jdbcTemplate.queryForObject(
+        """
             SELECT COUNT(*)
             FROM review_logs
             WHERE "wordId" = ? AND quality = 4
             """,
-            Integer.class,
-            wordId
-        );
+        Integer.class,
+        wordId);
 
-        assertThat(status).isEqualTo("LEARNING");
-        assertThat(repetitions).isEqualTo(1);
-        assertThat(logCount).isEqualTo(1);
+    assertThat(status).isEqualTo("LEARNING");
+    assertThat(repetitions).isEqualTo(1);
+    assertThat(logCount).isEqualTo(1);
 
-        // Database lưu đúng khoảng cách 24 giờ.
-        LocalDateTime reviewedAt = jdbcTemplate.queryForObject(
-            """
+    // Database lưu đúng khoảng cách 24 giờ.
+    LocalDateTime reviewedAt = jdbcTemplate.queryForObject(
+        """
             SELECT "lastReviewedAt"
             FROM srs_data WHERE "wordId" = ?
             """,
-            LocalDateTime.class,
-            wordId
-        );
+        LocalDateTime.class,
+        wordId);
 
-        LocalDateTime nextReviewAt = jdbcTemplate.queryForObject(
-            """
+    LocalDateTime nextReviewAt = jdbcTemplate.queryForObject(
+        """
             SELECT "nextReviewAt"
             FROM srs_data WHERE "wordId" = ?
             """,
-            LocalDateTime.class,
-            wordId
-        );
+        LocalDateTime.class,
+        wordId);
 
-        assertThat(nextReviewAt)
-            .isEqualTo(reviewedAt.plusDays(1));
-    }
+    assertThat(nextReviewAt)
+        .isEqualTo(reviewedAt.plusDays(1));
+  }
 
-    @Test
-    void shouldRejectReviewOfAnotherUsersWord()
-        throws Exception {
+  @Test
+  void shouldRejectReviewOfAnotherUsersWord()
+      throws Exception {
 
-        String ownerEmail = "review-owner@lexi.test";
+    String ownerEmail = "review-owner@lexi.test";
 
-        Session owner = register(ownerEmail);
-        Session other = register(
-            "review-other@lexi.test"
-        );
+    Session owner = register(ownerEmail);
+    Session other = register(
+        "review-other@lexi.test");
 
-        createWord(owner, "private");
+    createWord(owner, "private");
 
-        String wordId = findWordId(
-            ownerEmail,
-            "private"
-        );
+    String wordId = findWordId(
+        ownerEmail,
+        "private");
 
-        mockMvc.perform(
-            post("/review/answer")
-                .cookie(authCookies(other))
-                .header(
-                    "X-CSRF-Token",
-                    other.csrfToken()
-                )
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "wordId": "%s",
-                      "rating": "easy"
-                    }
-                    """.formatted(wordId))
-        )
-            .andExpect(status().isNotFound())
-            .andExpect(
-                jsonPath("$.message").value("Word not found")
-            );
+    mockMvc.perform(
+        post("/review/answer")
+            .cookie(authCookies(other))
+            .header(
+                "X-CSRF-Token",
+                other.csrfToken())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "wordId": "%s",
+                  "rating": "easy"
+                }
+                """.formatted(wordId)))
+        .andExpect(status().isNotFound())
+        .andExpect(
+            jsonPath("$.message").value("Word not found"));
 
-        Integer logCount = jdbcTemplate.queryForObject(
-            """
+    Integer logCount = jdbcTemplate.queryForObject(
+        """
             SELECT COUNT(*)
             FROM review_logs
             WHERE "wordId" = ?
             """,
-            Integer.class,
-            wordId
-        );
+        Integer.class,
+        wordId);
 
-        assertThat(logCount).isZero();
-    }
+    assertThat(logCount).isZero();
+  }
 
-    @Test
-    void shouldMoveMasteredWordBackToLearningWhenForgotten()
-        throws Exception {
+  @Test
+  void shouldMoveMasteredWordBackToLearningWhenForgotten()
+      throws Exception {
 
-        String email = "review-forgot@lexi.test";
-        Session session = register(email);
+    String email = "review-forgot@lexi.test";
+    Session session = register(email);
 
-        createWord(session, "challenging");
-        String wordId = findWordId(email, "challenging");
+    createWord(session, "challenging");
+    String wordId = findWordId(email, "challenging");
 
-        jdbcTemplate.update(
-            """
+    jdbcTemplate.update(
+        """
             UPDATE srs_data
             SET interval = 21,
                 "easeFactor" = 2.5,
                 repetitions = 5
             WHERE "wordId" = ?
             """,
-            wordId
-        );
+        wordId);
 
-        jdbcTemplate.update(
-            """
+    jdbcTemplate.update(
+        """
             UPDATE words
             SET status = 'MASTERED'
             WHERE id = ?
             """,
-            wordId
-        );
+        wordId);
 
-        mockMvc.perform(
-            post("/review/answer")
-                .cookie(authCookies(session))
-                .header(
-                    "X-CSRF-Token",
-                    session.csrfToken()
-                )
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "wordId": "%s",
-                      "rating": "forgot"
-                    }
-                    """.formatted(wordId))
-        )
-            .andExpect(status().isCreated())
-            .andExpect(
-                jsonPath("$.data.status").value("LEARNING")
-            )
-            .andExpect(
-                jsonPath("$.data.srsData.interval").value(1)
-            )
-            .andExpect(
-                jsonPath("$.data.srsData.repetitions").value(0)
-            )
-            .andExpect(
-                jsonPath("$.data.srsData.easeFactor").value(1.7)
-            );
+    mockMvc.perform(
+        post("/review/answer")
+            .cookie(authCookies(session))
+            .header(
+                "X-CSRF-Token",
+                session.csrfToken())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "wordId": "%s",
+                  "rating": "forgot"
+                }
+                """.formatted(wordId)))
+        .andExpect(status().isCreated())
+        .andExpect(
+            jsonPath("$.data.status").value("LEARNING"))
+        .andExpect(
+            jsonPath("$.data.srsData.interval").value(1))
+        .andExpect(
+            jsonPath("$.data.srsData.repetitions").value(0))
+        .andExpect(
+            jsonPath("$.data.srsData.easeFactor").value(1.7));
+  }
+
+  @Test
+  void shouldRollbackAllWritesWhenReviewLogInsertFails()
+      throws Exception {
+
+    String email = "review-rollback@lexi.test";
+    Session session = register(email);
+
+    createWord(session, "atomicity");
+    String wordId = findWordId(email, "atomicity");
+
+    // Giả lập lỗi insert mới ở bảng review_logs.
+    // NOT VALID cho phép giữ các log seed đã có,
+    // nhưng vẫn kiểm tra các hàng được insert mới.
+    jdbcTemplate.execute("""
+        ALTER TABLE review_logs
+        ADD CONSTRAINT reject_new_review
+        CHECK (quality < 0) NOT VALID
+        """);
+
+    try {
+      mockMvc.perform(
+          post("/review/answer")
+              .cookie(authCookies(session))
+              .header(
+                  "X-CSRF-Token",
+                  session.csrfToken())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content("""
+                  {
+                    "wordId": "%s",
+                    "rating": "good"
+                  }
+                  """.formatted(wordId)))
+          .andExpect(
+              status().isInternalServerError());
+
+      String status = jdbcTemplate.queryForObject(
+          """
+              SELECT status::text
+              FROM words WHERE id = ?
+              """,
+          String.class,
+          wordId);
+
+      Integer repetitions = jdbcTemplate.queryForObject(
+          """
+              SELECT repetitions
+              FROM srs_data WHERE "wordId" = ?
+              """,
+          Integer.class,
+          wordId);
+
+      Integer lastQuality = jdbcTemplate.queryForObject(
+          """
+              SELECT "lastQuality"
+              FROM srs_data WHERE "wordId" = ?
+              """,
+          Integer.class,
+          wordId);
+
+      Integer logs = jdbcTemplate.queryForObject(
+          """
+              SELECT COUNT(*)
+              FROM review_logs WHERE "wordId" = ?
+              """,
+          Integer.class,
+          wordId);
+
+      // Nếu transaction đúng, không thay đổi gì.
+      assertThat(status).isEqualTo("NEW");
+      assertThat(repetitions).isZero();
+      assertThat(lastQuality).isNull();
+      assertThat(logs).isZero();
+
+    } finally {
+      jdbcTemplate.execute("""
+          ALTER TABLE review_logs
+          DROP CONSTRAINT IF EXISTS reject_new_review
+          """);
     }
+  }
 
-    @Test
-    void shouldRollbackAllWritesWhenReviewLogInsertFails()
-        throws Exception {
+  @Test
+  void shouldRejectInvalidRatingAndMissingCsrf()
+      throws Exception {
 
-        String email = "review-rollback@lexi.test";
-        Session session = register(email);
+    String email = "review-invalid@lexi.test";
+    Session session = register(email);
 
-        createWord(session, "atomicity");
-        String wordId = findWordId(email, "atomicity");
+    createWord(session, "secure");
+    String wordId = findWordId(email, "secure");
 
-        // Giả lập lỗi insert mới ở bảng review_logs.
-        // NOT VALID cho phép giữ các log seed đã có,
-        // nhưng vẫn kiểm tra các hàng được insert mới.
-        jdbcTemplate.execute("""
-            ALTER TABLE review_logs
-            ADD CONSTRAINT reject_new_review
-            CHECK (quality < 0) NOT VALID
-            """);
+    // Rating phải dùng enum lowercase hợp lệ.
+    mockMvc.perform(
+        post("/review/answer")
+            .cookie(authCookies(session))
+            .header(
+                "X-CSRF-Token",
+                session.csrfToken())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "wordId": "%s",
+                  "rating": "excellent"
+                }
+                """.formatted(wordId)))
+        .andExpect(status().isBadRequest());
 
-        try {
-            mockMvc.perform(
-                post("/review/answer")
-                    .cookie(authCookies(session))
-                    .header(
-                        "X-CSRF-Token",
-                        session.csrfToken()
-                    )
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""
-                        {
-                          "wordId": "%s",
-                          "rating": "good"
-                        }
-                        """.formatted(wordId))
-            )
-                .andExpect(
-                    status().isInternalServerError()
-                );
+    // Có access token, nhưng không có CSRF header.
+    mockMvc.perform(
+        post("/review/answer")
+            .cookie(
+                new Cookie(
+                    "access_token",
+                    session.accessToken()))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "wordId": "%s",
+                  "rating": "good"
+                }
+                """.formatted(wordId)))
+        .andExpect(status().isForbidden());
+  }
 
-            String status = jdbcTemplate.queryForObject(
-                """
-                SELECT status::text
-                FROM words WHERE id = ?
-                """,
-                String.class,
-                wordId
-            );
+  private Session register(String email)
+      throws Exception {
 
-            Integer repetitions = jdbcTemplate.queryForObject(
-                """
-                SELECT repetitions
-                FROM srs_data WHERE "wordId" = ?
-                """,
-                Integer.class,
-                wordId
-            );
+    var result = mockMvc.perform(
+        post("/auth/register")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "email": "%s",
+                  "password": "password123"
+                }
+                """.formatted(email)))
+        .andExpect(status().isCreated())
+        .andReturn();
 
-            Integer lastQuality = jdbcTemplate.queryForObject(
-                """
-                SELECT "lastQuality"
-                FROM srs_data WHERE "wordId" = ?
-                """,
-                Integer.class,
-                wordId
-            );
+    List<String> headers = result.getResponse()
+        .getHeaders(HttpHeaders.SET_COOKIE);
 
-            Integer logs = jdbcTemplate.queryForObject(
-                """
-                SELECT COUNT(*)
-                FROM review_logs WHERE "wordId" = ?
-                """,
-                Integer.class,
-                wordId
-            );
+    return new Session(
+        cookieValue(headers, "access_token"),
+        cookieValue(headers, "csrf_token"));
+  }
 
-            // Nếu transaction đúng, không thay đổi gì.
-            assertThat(status).isEqualTo("NEW");
-            assertThat(repetitions).isZero();
-            assertThat(lastQuality).isNull();
-            assertThat(logs).isZero();
+  private void createWord(Session session, String term)
+      throws Exception {
 
-        } finally {
-            jdbcTemplate.execute("""
-                ALTER TABLE review_logs
-                DROP CONSTRAINT IF EXISTS reject_new_review
-                """);
-        }
-    }
+    mockMvc.perform(
+        post("/words")
+            .cookie(authCookies(session))
+            .header(
+                "X-CSRF-Token",
+                session.csrfToken())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "term": "%s",
+                  "meaning": "test meaning"
+                }
+                """.formatted(term)))
+        .andExpect(status().isCreated());
+  }
 
-    @Test
-    void shouldRejectInvalidRatingAndMissingCsrf()
-        throws Exception {
-
-        String email = "review-invalid@lexi.test";
-        Session session = register(email);
-
-        createWord(session, "secure");
-        String wordId = findWordId(email, "secure");
-
-        // Rating phải dùng enum lowercase hợp lệ.
-        mockMvc.perform(
-            post("/review/answer")
-                .cookie(authCookies(session))
-                .header(
-                    "X-CSRF-Token",
-                    session.csrfToken()
-                )
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "wordId": "%s",
-                      "rating": "excellent"
-                    }
-                    """.formatted(wordId))
-        )
-            .andExpect(status().isBadRequest());
-
-        // Có access token, nhưng không có CSRF header.
-        mockMvc.perform(
-            post("/review/answer")
-                .cookie(
-                    new Cookie(
-                        "access_token",
-                        session.accessToken()
-                    )
-                )
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "wordId": "%s",
-                      "rating": "good"
-                    }
-                    """.formatted(wordId))
-        )
-            .andExpect(status().isForbidden());
-    }
-
-    private Session register(String email)
-        throws Exception {
-
-        var result = mockMvc.perform(
-            post("/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "email": "%s",
-                      "password": "password123"
-                    }
-                    """.formatted(email))
-        )
-            .andExpect(status().isCreated())
-            .andReturn();
-
-        List<String> headers = result.getResponse()
-            .getHeaders(HttpHeaders.SET_COOKIE);
-
-        return new Session(
-            cookieValue(headers, "access_token"),
-            cookieValue(headers, "csrf_token")
-        );
-    }
-
-    private void createWord(Session session, String term)
-        throws Exception {
-
-        mockMvc.perform(
-            post("/words")
-                .cookie(authCookies(session))
-                .header(
-                    "X-CSRF-Token",
-                    session.csrfToken()
-                )
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "term": "%s",
-                      "meaning": "test meaning"
-                    }
-                    """.formatted(term))
-        )
-            .andExpect(status().isCreated());
-    }
-
-    private String findWordId(String email, String term) {
-        return jdbcTemplate.queryForObject(
-            """
+  private String findWordId(String email, String term) {
+    return jdbcTemplate.queryForObject(
+        """
             SELECT w.id
             FROM words w
             JOIN users u ON u.id = w."userId"
             WHERE u.email = ?
               AND w.term = ?
             """,
-            String.class,
-            email,
-            term
-        );
+        String.class,
+        email,
+        term);
+  }
+
+  private Cookie[] authCookies(Session session) {
+    return new Cookie[] {
+        new Cookie(
+            "access_token",
+            session.accessToken()),
+        new Cookie(
+            "csrf_token",
+            session.csrfToken())
+    };
+  }
+
+  private String cookieValue(
+      List<String> headers,
+      String name) {
+    String prefix = name + "=";
+
+    return headers.stream()
+        .filter(h -> h.startsWith(prefix))
+        .findFirst()
+        .map(h -> h.substring(prefix.length())
+            .split(";", 2)[0])
+        .orElseThrow(() -> new AssertionError(
+            "Missing cookie: " + name));
+  }
+
+  private record Session(
+      String accessToken,
+      String csrfToken) {
+  }
+
+  @Test
+  void concurrentReviewsMustAdvanceSrsTwice()
+      throws Exception {
+
+    String email = "review-concurrent@lexi.test";
+    Session session = register(email);
+
+    createWord(session, "concurrency");
+    String wordId = findWordId(email, "concurrency");
+
+    ExecutorService pool = Executors.newFixedThreadPool(3);
+
+    CountDownLatch locked = new CountDownLatch(1);
+    CountDownLatch unlock = new CountDownLatch(1);
+    CountDownLatch ready = new CountDownLatch(2);
+    CountDownLatch start = new CountDownLatch(1);
+
+    try {
+      // 1. Giữ lock trên row SRS bằng transaction riêng.
+      Future<?> holder = pool.submit(() -> {
+        new TransactionTemplate(transactionManager)
+            .executeWithoutResult(status -> {
+              jdbcTemplate.queryForObject("""
+                  SELECT id
+                  FROM srs_data
+                  WHERE "wordId" = ?
+                  FOR UPDATE
+                  """, String.class, wordId);
+
+              locked.countDown();
+
+              try {
+                if (!unlock.await(
+                    10, TimeUnit.SECONDS)) {
+                  throw new IllegalStateException(
+                      "lock timeout");
+                }
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(e);
+              }
+            });
+      });
+
+      assertThat(
+          locked.await(5, TimeUnit.SECONDS)).isTrue();
+
+      // 2. Chuẩn bị hai HTTP request giống nhau.
+      Callable<Integer> request = () -> {
+        ready.countDown();
+
+        if (!start.await(5, TimeUnit.SECONDS)) {
+          throw new IllegalStateException(
+              "start timeout");
+        }
+
+        return mockMvc.perform(
+            post("/review/answer")
+                .cookie(authCookies(session))
+                .header(
+                    "X-CSRF-Token",
+                    session.csrfToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "wordId": "%s",
+                      "rating": "good"
+                    }
+                    """.formatted(wordId)))
+            .andReturn().getResponse().getStatus();
+      };
+
+      // 3. Gửi đồng thời.
+      Future<Integer> a = pool.submit(request);
+      Future<Integer> b = pool.submit(request);
+
+      assertThat(
+          ready.await(5, TimeUnit.SECONDS)).isTrue();
+
+      start.countDown();
+
+      // 4. Trong khi holder còn khóa, request chưa xong.
+      assertThatThrownBy(
+          () -> a.get(250, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+
+      assertThatThrownBy(
+          () -> b.get(250, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+
+      // 5. Nhả khóa.
+      unlock.countDown();
+      holder.get(10, TimeUnit.SECONDS);
+
+      assertThat(
+          a.get(10, TimeUnit.SECONDS)).isEqualTo(201);
+
+      assertThat(
+          b.get(10, TimeUnit.SECONDS)).isEqualTo(201);
+
+      // 6. Kiểm tra dữ liệu thật trong PostgreSQL.
+      Integer repetitions = jdbcTemplate.queryForObject(
+          """
+              SELECT repetitions
+              FROM srs_data
+              WHERE "wordId" = ?
+              """,
+          Integer.class,
+          wordId);
+
+      Integer interval = jdbcTemplate.queryForObject(
+          """
+              SELECT interval
+              FROM srs_data
+              WHERE "wordId" = ?
+              """,
+          Integer.class,
+          wordId);
+
+      Integer logCount = jdbcTemplate.queryForObject(
+          """
+              SELECT COUNT(*)
+              FROM review_logs
+              WHERE "wordId" = ?
+              """,
+          Integer.class,
+          wordId);
+
+      assertThat(repetitions).isEqualTo(2);
+      assertThat(interval).isEqualTo(3);
+      assertThat(logCount).isEqualTo(2);
+
+    } finally {
+      unlock.countDown();
+      pool.shutdownNow();
     }
-
-    private Cookie[] authCookies(Session session) {
-        return new Cookie[] {
-            new Cookie(
-                "access_token",
-                session.accessToken()
-            ),
-            new Cookie(
-                "csrf_token",
-                session.csrfToken()
-            )
-        };
-    }
-
-    private String cookieValue(
-        List<String> headers,
-        String name
-    ) {
-        String prefix = name + "=";
-
-        return headers.stream()
-            .filter(h -> h.startsWith(prefix))
-            .findFirst()
-            .map(h ->
-                h.substring(prefix.length())
-                    .split(";", 2)[0]
-            )
-            .orElseThrow(() ->
-                new AssertionError(
-                    "Missing cookie: " + name
-                )
-            );
-    }
-
-    private record Session(
-        String accessToken,
-        String csrfToken
-    ) {}
+  }
 }

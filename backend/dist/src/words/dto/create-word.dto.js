@@ -13,6 +13,7 @@ exports.CreateWordDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 class CreateWordDto {
+    enrich;
     term;
     meaning;
     phonetic;
@@ -24,6 +25,14 @@ class CreateWordDto {
     note;
 }
 exports.CreateWordDto = CreateWordDto;
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Set false to save without third-party AI processing',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateWordDto.prototype, "enrich", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ example: 'serendipity' }),
     (0, class_validator_1.IsString)(),

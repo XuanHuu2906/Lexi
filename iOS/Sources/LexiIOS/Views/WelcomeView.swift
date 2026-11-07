@@ -36,6 +36,7 @@ struct WelcomeView: View {
                             FeedbackNotice(message: message)
                         }
                     }
+                    NavigationLink("Quyền riêng tư") { PrivacyDetailsView(preferences: container.privacy) }
                     Text("Bản phát triển").font(LexiTypography.caption).foregroundStyle(LexiColors.textSecondary)
                 }
                 .padding(.top, LexiSpacing.xl)

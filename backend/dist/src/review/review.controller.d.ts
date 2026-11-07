@@ -61,6 +61,8 @@ export declare class ReviewController {
             meaning: string;
             phonetic: string | null;
             examples: string[];
+            synonyms: string[];
+            antonyms: string[];
         } | {
             cloze: string | null;
             wordId: string;
@@ -68,6 +70,8 @@ export declare class ReviewController {
             meaning: string;
             phonetic: string | null;
             examples: string[];
+            synonyms: string[];
+            antonyms: string[];
         })[];
     }>;
 }

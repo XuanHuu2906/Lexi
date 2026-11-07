@@ -3,3 +3,6 @@ node_modules
 .env
 
 /generated/prisma
+
+# Local notebook backups contain account vocabulary.
+/docs/*.local.json

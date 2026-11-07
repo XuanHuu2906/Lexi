@@ -80,7 +80,7 @@ struct FeatureAPITests {
         let publicRoute = ["lookup", "lookup_batch"].contains(name)
         #expect(request.value(forHTTPHeaderField: "Authorization") == (publicRoute ? nil : "Bearer synthetic-test-token"))
         #expect(request.value(forHTTPHeaderField: "X-Request-ID") == nil)
-        let aiRoute = ["lookup", "lookup_batch", "verify", "quick_add", "examples", "quiz_generated"].contains(name)
+        let aiRoute = ["lookup", "lookup_batch", "verify", "quick_add", "examples", "quiz_generated", "word_created"].contains(name)
         #expect(request.timeoutInterval == (aiRoute ? 90 : 15))
         if let body = request.httpBody {
             #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")

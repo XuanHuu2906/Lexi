@@ -8,6 +8,7 @@ final class SessionViewModel {
         didSet {
             if case .authenticated(let me) = state { navigation.activate(userID: me.id) }
             else { navigation.reset() }
+            if privacy?.ownerID != navigation.ownerID { privacy?.activate(userID: navigation.ownerID) }
         }
     }
     let navigation = AppNavigation()
@@ -17,6 +18,9 @@ final class SessionViewModel {
     private(set) var message: String?
     private(set) var offlineSession = false
     private(set) var retryAfter: Date?
+    private(set) var deletionFeedback: FeatureFeedback?
+    private(set) var deletionUncertain = false
+    let privacy: PrivacyPreferences?
     private let session: SessionActor
     private let api: AuthAPI
     private let clock: any APIClock
@@ -31,11 +35,12 @@ final class SessionViewModel {
 
     init(session: SessionActor, api: AuthAPI, clock: any APIClock = SystemAPIClock(),
          offlineProfile: OfflineProfileStore? = nil, offlineCacheDirectory: URL? = nil,
-         checkpointDefaults: UserDefaults = .standard) {
+         checkpointDefaults: UserDefaults = .standard, privacy: PrivacyPreferences? = nil) {
         self.session = session; self.api = api; self.clock = clock
         self.offlineProfile = offlineProfile
         self.offlineCacheDirectory = offlineCacheDirectory
         self.checkpointDefaults = checkpointDefaults
+        self.privacy = privacy
     }
 
     /// Register the *same* writer actor as the authenticated shell. It must
@@ -54,6 +59,7 @@ final class SessionViewModel {
     /// Failure is visible to the caller. Do not claim that logout removed
     /// private data when iOS file protection or disk errors prevented it.
     private func purgePersonalData(ownerID: String?) async -> Bool {
+        privacy?.clear(userID: ownerID)
         // Stop all personal mutation pipelines before deleting their checkpoints.
         if let activeFeatureCleanup {
             self.activeFeatureCleanup = nil
@@ -77,6 +83,65 @@ final class SessionViewModel {
     func clearFeedback() {
         guard !busy else { return }
         message = nil // Keep server cooldown when switching login/register forms.
+    }
+
+    func deleteAccount(password: String, confirmed: Bool) async -> Bool {
+        guard !busy, !offlineSession, !deletionUncertain,
+              case .authenticated(let me) = state,
+              deletionFeedback?.canRetry(at: clock.now()) != false else { return false }
+        guard confirmed, !password.isEmpty, password.utf8.count <= 72 else {
+            deletionFeedback = FeatureFeedback(message: "Nhập mật khẩu hiện tại và xác nhận xóa tài khoản.")
+            return false
+        }
+        let id = UUID(); operation = id
+        busy = true; deletionFeedback = nil
+        defer { if operation == id { busy = false } }
+        do {
+            let result = try await api.deleteAccount(password: password)
+            guard operation == id else { return false }
+            guard result.deleted else { throw HTTPError.invalidResponse }
+            profileSessionID = nil; pendingLookup = nil; offlineSession = false
+            state = .signedOut
+            let cacheCleared = await purgePersonalData(ownerID: me.id)
+            var profileCleared = true
+            do { try offlineProfile?.clear() } catch { profileCleared = false }
+            let credentialCleared = await session.forgetDeletedAccount()
+            if !cacheCleared || !profileCleared || !credentialCleared {
+                state = .unavailable
+                message = "Tài khoản đã được xóa trên máy chủ, nhưng chưa dọn hết dữ liệu trên iPhone. Mở khóa thiết bị và bấm Đăng xuất khỏi thiết bị để thử dọn lại."
+            } else {
+                message = "Đã xóa tài khoản và dữ liệu học trên máy chủ Lexi, đồng thời dọn dữ liệu của bạn trên iPhone."
+            }
+            return true
+        } catch {
+            guard operation == id else { return false }
+            switch error as? HTTPError {
+            case .forbidden:
+                deletionFeedback = FeatureFeedback(message: "Chưa xác nhận được mật khẩu. Kiểm tra mật khẩu hiện tại rồi thử lại.")
+            case .notFound:
+                deletionFeedback = FeatureFeedback(message: "Máy chủ chưa hỗ trợ xóa tài khoản tại đây. Chưa có xác nhận xóa dữ liệu.")
+            case .validation, .invalidRequest, .rateLimit, .unauthorized:
+                deletionFeedback = FeatureFeedback(error, now: clock.now())
+            default:
+                deletionUncertain = true
+                deletionFeedback = FeatureFeedback(message: "Chưa xác nhận được kết quả xóa. Kiểm tra trạng thái tài khoản trước khi thử lại; Lexi không tự gửi lại yêu cầu xóa.")
+            }
+            return false
+        }
+    }
+
+    func checkDeletionStatus() async {
+        guard !busy, deletionUncertain, let owner = navigation.ownerID else { return }
+        busy = true
+        defer { busy = false }
+        do {
+            let me = try await api.me()
+            guard navigation.ownerID == owner, me.id == owner else { return }
+            deletionUncertain = false
+            deletionFeedback = FeatureFeedback(message: "Tài khoản vẫn tồn tại. Bạn có thể nhập lại mật khẩu và chủ động xác nhận xóa.")
+        } catch {
+            deletionFeedback = FeatureFeedback(message: "Chưa xác minh được trạng thái tài khoản. Không có yêu cầu xóa nào được gửi lại.")
+        }
     }
 
     func observeInvalidations() async {
@@ -167,6 +232,7 @@ final class SessionViewModel {
         }
         guard operation == id else { return }
         profileSessionID = nil; offlineSession = false
+        deletionFeedback = nil; deletionUncertain = false
         state = .signedOut
         do {
             try await session.signIn(MobileCredentials(email: email, password: password), register: register)

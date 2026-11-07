@@ -41,10 +41,12 @@ struct APIClient: Sendable {
     var clock: any APIClock = SystemAPIClock()
     // Opt in only after the server/ingress supports tracing this header.
     var sendsRequestID = false
+    var privacy: PrivacyPreferences? = nil
 
     func send<Response>(_ endpoint: APIEndpoint<Response>, uploadFile: URL? = nil) async throws -> Response {
         do {
             try Task.checkCancellation()
+            if let use = endpoint.externalDataUse { try await privacy?.authorize(use) }
             var credential = endpoint.requiresAuth ? try await tokens.credential() : AccessCredential(token: nil, sessionID: nil)
             let requestID = sendsRequestID ? UUID().uuidString : nil
             var attempts = 0
@@ -52,6 +54,7 @@ struct APIClient: Sendable {
             while true {
                 do {
                     try Task.checkCancellation()
+                    if let use = endpoint.externalDataUse { try await privacy?.authorize(use) }
                     if endpoint.requiresAuth { try await tokens.validate(credential) }
                     let request = try endpoint.request(baseURL: environment.apiBaseURL, token: credential.token, requestID: requestID)
                     let data: Data

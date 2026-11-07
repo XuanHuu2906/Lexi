@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var WordsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WordsService = void 0;
 const common_1 = require("@nestjs/common");
@@ -15,9 +16,10 @@ const ai_service_1 = require("../ai/ai.service");
 const normalize_term_1 = require("../common/normalize-term");
 const parse_lookup_terms_1 = require("../common/parse-lookup-terms");
 const prisma_service_1 = require("../prisma/prisma.service");
-let WordsService = class WordsService {
+let WordsService = WordsService_1 = class WordsService {
     prisma;
     ai;
+    logger = new common_1.Logger(WordsService_1.name);
     constructor(prisma, ai) {
         this.prisma = prisma;
         this.ai = ai;
@@ -56,6 +58,14 @@ let WordsService = class WordsService {
         if (existing) {
             throw new common_1.ConflictException('This word is already in your notebook');
         }
+        let details = {};
+        try {
+            if (dto.enrich !== false)
+                details = await this.missingDetails(dto);
+        }
+        catch {
+            this.logger.warn('Vocabulary enrichment unavailable; saved supplied fields');
+        }
         return this.prisma.word.create({
             data: {
                 userId,
@@ -63,15 +73,62 @@ let WordsService = class WordsService {
                 meaning: dto.meaning,
                 phonetic: dto.phonetic,
                 partOfSpeech: dto.partOfSpeech,
-                examples: dto.examples ?? [],
-                synonyms: dto.synonyms ?? [],
-                antonyms: dto.antonyms ?? [],
+                examples: details.examples ?? dto.examples ?? [],
+                synonyms: details.synonyms ?? dto.synonyms ?? [],
+                antonyms: details.antonyms ?? dto.antonyms ?? [],
                 topic: dto.topic,
                 note: dto.note,
                 srsData: { create: {} },
             },
             include: { srsData: true },
         });
+    }
+    async missingDetails(dto) {
+        const missing = (values) => !values?.some((v) => v.trim());
+        if (![dto.examples, dto.synonyms, dto.antonyms].some(missing))
+            return {};
+        const result = await this.ai.verifyVocab(dto.term.trim(), {
+            userMeaning: dto.meaning,
+        });
+        if (!result.isValid ||
+            result.meaningVerdict !== 'match' ||
+            (0, normalize_term_1.normalizeTerm)(result.correctedTerm) !== (0, normalize_term_1.normalizeTerm)(dto.term))
+            return {};
+        const clean = (values) => [
+            ...new Set(values.map((v) => v.trim()).filter(Boolean)),
+        ];
+        const patch = {};
+        const examples = clean(result.examples
+            .filter((e) => e.en.trim() && e.vi.trim())
+            .map((e) => `${e.en.trim()} — ${e.vi.trim()}`));
+        const synonyms = clean(result.synonyms);
+        const antonyms = clean(result.antonyms);
+        if (missing(dto.examples) && examples.length)
+            patch.examples = examples;
+        if (missing(dto.synonyms) && synonyms.length)
+            patch.synonyms = synonyms;
+        if (missing(dto.antonyms) && antonyms.length)
+            patch.antonyms = antonyms;
+        return patch;
+    }
+    async enrichMissing(userId, id) {
+        const word = await this.getOne(userId, id);
+        const details = await this.missingDetails(word);
+        if (!Object.keys(details).length)
+            return { updated: false };
+        const result = await this.prisma.word.updateMany({
+            where: {
+                id,
+                userId,
+                term: word.term,
+                meaning: word.meaning,
+                examples: { equals: word.examples },
+                synonyms: { equals: word.synonyms },
+                antonyms: { equals: word.antonyms },
+            },
+            data: details,
+        });
+        return { updated: result.count === 1 };
     }
     async quickAdd(userId, dto) {
         const idx = dto.text.indexOf(':');
@@ -94,7 +151,7 @@ let WordsService = class WordsService {
         const enrichedSynonyms = await this.markToeic(synonyms);
         const isToeicTerm = (await this.toeicTerms([term])).has((0, normalize_term_1.normalizeTerm)(term));
         let savedWord = word;
-        if (enrichedSynonyms.length > 0) {
+        if (enrichedSynonyms.length > 0 && word.synonyms.length === 0) {
             savedWord = await this.prisma.word.update({
                 where: { id: word.id },
                 data: { synonyms: enrichedSynonyms.map((s) => s.word) },
@@ -104,7 +161,9 @@ let WordsService = class WordsService {
         return { word: savedWord, isToeicTerm, synonyms: enrichedSynonyms };
     }
     async toeicTerms(words) {
-        const terms = [...new Set(words.map((w) => (0, normalize_term_1.normalizeTerm)(w)).filter(Boolean))];
+        const terms = [
+            ...new Set(words.map((w) => (0, normalize_term_1.normalizeTerm)(w)).filter(Boolean)),
+        ];
         if (terms.length === 0)
             return new Set();
         const rows = await this.prisma.toeicWord.findMany({
@@ -190,7 +249,7 @@ let WordsService = class WordsService {
     }
 };
 exports.WordsService = WordsService;
-exports.WordsService = WordsService = __decorate([
+exports.WordsService = WordsService = WordsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         ai_service_1.AiService])

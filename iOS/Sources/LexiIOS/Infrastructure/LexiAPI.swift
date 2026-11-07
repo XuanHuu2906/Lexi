@@ -27,6 +27,11 @@ struct AuthAPI: NativeAuthenticating {
     func me() async throws -> ApiMe {
         try await client.send(APIEndpoint(path: ["users", "me"], retry: .safeReadOnce))
     }
+    func deleteAccount(password: String) async throws -> DeletedResult {
+        struct Body: Encodable { let password: String; let confirmation = "DELETE" }
+        return try await client.send(APIEndpoint(path: ["users", "me"], method: .delete)
+            .json(Body(password: password)))
+    }
     // Dedicated native JSON transport; web cookie routes keep their own contract.
     func login(_ credentials: MobileCredentials) async throws -> MobileAuthResult {
         try await client.send(APIEndpoint(path: ["auth", "mobile", "login"], method: .post,
@@ -90,7 +95,14 @@ struct WordsAPI: Sendable {
         try await client.send(APIEndpoint<BackendWordDTO>(path: ["words", id], retry: .safeReadOnce)).toWord()
     }
     func create(_ input: WordInput) async throws -> Word {
-        try await client.send(APIEndpoint<BackendWordDTO>(path: ["words"], method: .post).json(input.toDTO())).toWord()
+        var dto = input.toDTO()
+        var endpoint = APIEndpoint<BackendWordDTO>(path: ["words"], method: .post, timeout: .ai)
+        if let privacy = client.privacy {
+            let enrich = await privacy.canEnrichWords
+            dto.enrich = enrich
+            endpoint.usesExternalProcessing = enrich
+        }
+        return try await client.send(endpoint.json(dto)).toWord()
     }
     func delete(id: String) async throws -> DeletedResult {
         try await client.send(APIEndpoint(path: ["words", id], method: .delete))

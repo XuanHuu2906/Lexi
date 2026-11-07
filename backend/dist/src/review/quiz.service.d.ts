@@ -16,6 +16,23 @@ export declare class QuizService {
             options: string[];
         }[];
     }>;
+    latest(userId: string): Promise<{
+        quiz: {
+            quizId: string;
+            total: number;
+            score: number;
+            status: QuizStatus;
+            questions: {
+                answerIndex?: number | undefined;
+                explanation?: string | undefined;
+                index: number;
+                term: string;
+                question: string;
+                options: string[];
+                userAnswer: number | null;
+            }[];
+        } | null;
+    }>;
     get(userId: string, id: string): Promise<{
         quizId: string;
         total: number;

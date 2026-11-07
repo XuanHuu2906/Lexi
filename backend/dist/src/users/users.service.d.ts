@@ -1,8 +1,12 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 export declare class UsersService {
     private readonly prisma;
     constructor(prisma: PrismaService);
+    deleteAccount(userId: string, dto: DeleteAccountDto): Promise<{
+        deleted: boolean;
+    }>;
     getProfile(userId: string): Promise<{
         id: string;
         email: string;

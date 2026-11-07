@@ -15,8 +15,8 @@ struct ReviewAnswerResult: Decodable, Sendable {
 
 enum FlashcardMode: String, Codable, Sendable { case guess, listen, fill, match }
 enum FlashcardScope: String, Codable, Sendable { case due, today }
-struct FlashcardSet: Decodable, Sendable {
-    struct Card: Decodable, Sendable {
+struct FlashcardSet: Codable, Sendable {
+    struct Card: Codable, Sendable {
         let wordId: String
         let term: String
         let meaning: String
@@ -25,6 +25,8 @@ struct FlashcardSet: Decodable, Sendable {
         let options: [String]?
         let answerIndex: Int?
         let cloze: String?
+        var synonyms: [String]? = nil
+        var antonyms: [String]? = nil
     }
     let mode: FlashcardMode
     let scope: FlashcardScope
@@ -39,14 +41,14 @@ struct FlashcardSet: Decodable, Sendable {
         self.cards = cards; self.offline = offline
     }
 
-    private enum CodingKeys: String, CodingKey { case mode, scope, count, cards }
+    private enum CodingKeys: String, CodingKey { case mode, scope, count, cards, offline }
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         mode = try container.decode(FlashcardMode.self, forKey: .mode)
         scope = try container.decode(FlashcardScope.self, forKey: .scope)
         count = try container.decode(Int.self, forKey: .count)
         cards = try container.decode([Card].self, forKey: .cards)
-        offline = false
+        offline = try container.decodeIfPresent(Bool.self, forKey: .offline) ?? false
     }
 }
 

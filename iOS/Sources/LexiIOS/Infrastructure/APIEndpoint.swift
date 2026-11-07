@@ -16,6 +16,14 @@ struct APIEndpoint<Response: Decodable & Sendable>: Sendable {
     var requiresAuth = true
     var timeout: RequestTimeout = .read
     var retry: RetryPolicy = .none
+    // Explicitly false for saving a manual word with enrich=false.
+    var usesExternalProcessing: Bool? = nil
+
+    var externalDataUse: ExternalDataUse? {
+        guard usesExternalProcessing != false else { return nil }
+        if timeout == .audio { return .speech }
+        return timeout == .ai || usesExternalProcessing == true ? .textAI : nil
+    }
 
     func json<Body: Encodable>(_ value: Body) throws -> Self {
         var copy = self

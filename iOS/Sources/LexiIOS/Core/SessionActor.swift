@@ -179,6 +179,13 @@ actor SessionActor: TokenProvider {
         return LogoutReport(localCleared: localCleared, remoteRevoked: remoteRevoked)
     }
 
+    // Server acknowledged account deletion: every server token is gone. Only
+    // local cleanup remains; do not turn a later logout timeout into uncertainty.
+    func forgetDeletedAccount() -> Bool {
+        do { try clearLocal(); return true }
+        catch { return false }
+    }
+
     private func revokeOrThrow(_ refresh: String) async throws {
         do { _ = try await auth.logout(refreshToken: refresh) }
         catch { throw SessionError.remoteRevocationFailed }
