@@ -8,7 +8,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
+import com.lexi.review.service.FlashcardBadRequestException;
 import com.lexi.security.auth.ConcurrentRefreshException;
 import com.lexi.security.auth.EmailAlreadyRegisteredException;
 import com.lexi.security.auth.InvalidCredentialsException;
@@ -19,6 +19,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import com.lexi.words.service.WordAlreadyExistsException;
+import com.lexi.review.service.ReviewIdempotencyException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -218,4 +219,33 @@ public class GlobalExceptionHandler {
             Instant.now(clock)));
   }
 
+  @ExceptionHandler(FlashcardBadRequestException.class)
+  public ResponseEntity<ApiErrorResponse> handleFlashcardBadRequest(
+      FlashcardBadRequestException exception,
+      HttpServletRequest request) {
+    return ResponseEntity.badRequest().body(
+        new ApiErrorResponse(
+            false,
+            400,
+            exception.getMessage(),
+            "Bad Request",
+            request.getRequestURI(),
+            Instant.now(clock)));
+  }
+
+  @ExceptionHandler(ReviewIdempotencyException.class)
+  public ResponseEntity<ApiErrorResponse> handleReviewIdempotency(
+      ReviewIdempotencyException exception,
+      HttpServletRequest request) {
+    HttpStatus status = exception.getStatus();
+
+    return ResponseEntity.status(status).body(
+        new ApiErrorResponse(
+            false,
+            status.value(),
+            exception.getMessage(),
+            status.getReasonPhrase(),
+            request.getRequestURI(),
+            Instant.now(clock)));
+  }
 }
